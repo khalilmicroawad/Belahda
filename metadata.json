@@ -1,0 +1,8 @@
+{
+  "name": "SouqInstant - P2P & B2C Marketplace",
+  "description": "Streamlined peer-to-peer and B2C buy & sell mobile application with zero-friction onboarding, ultra-fast 6-step listing wizard, and instant publishing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
