@@ -66,6 +66,12 @@ export const INITIAL_STORES: StoreProfile[] = [
   }
 ];
 
+import {
+  fetchSupabaseStores,
+  saveSupabaseStore,
+  supabase
+} from '../lib/supabase';
+
 const STORES_STORAGE_KEY = 'souq_belahdha_stores_db';
 
 export function getStoredStores(): StoreProfile[] {
@@ -77,10 +83,36 @@ export function getStoredStores(): StoreProfile[] {
       return INITIAL_STORES;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_STORES;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_STORES;
   } catch {
     return INITIAL_STORES;
   }
+}
+
+export async function fetchDatabaseStores(): Promise<StoreProfile[]> {
+  try {
+    const supaStores = await fetchSupabaseStores();
+    if (supaStores && supaStores.length > 0) {
+      saveStores(supaStores);
+      return supaStores;
+    }
+  } catch (err) {
+    console.warn('Supabase stores fetch error:', err);
+  }
+
+  try {
+    const res = await fetch('/api/stores');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        saveStores(data);
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('API stores fetch fallback to local:', err);
+  }
+  return getStoredStores();
 }
 
 export function saveStores(stores: StoreProfile[]): void {
@@ -103,5 +135,19 @@ export function addOrUpdateStore(store: StoreProfile): StoreProfile[] {
     updated = [store, ...current];
   }
   saveStores(updated);
+
+  if (typeof window !== 'undefined') {
+    supabase.auth
+      .getSession()
+      .then(({ data }) => saveSupabaseStore(store, data.session?.user?.id))
+      .catch(() => {});
+
+    fetch('/api/stores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(store),
+    }).catch((err) => console.warn('Could not sync store to API:', err));
+  }
+
   return updated;
 }

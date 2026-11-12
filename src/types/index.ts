@@ -15,6 +15,7 @@ export type CategoryId =
   | 'real_estate'
   | 'appliances'
   | 'hobbies'
+  | 'handcrafts'
   | 'services';
 
 export interface StoreLocation {
@@ -33,6 +34,12 @@ export interface ContactPreferences {
   phoneNumber?: string;
 }
 
+export interface StoreSocialLinks {
+  instagram?: string;
+  facebook?: string;
+  website?: string;
+}
+
 export interface StoreProfile {
   id: string;
   name: string;
@@ -47,6 +54,7 @@ export interface StoreProfile {
   category: CategoryId;
   whatsappNumber: string;
   phoneNumber: string;
+  socialLinks?: StoreSocialLinks;
   deliveryAvailable: boolean;
   deliveryNotes?: string;
   isVerified: boolean;
@@ -54,6 +62,8 @@ export interface StoreProfile {
   rating?: number;
   lat?: number;
   lng?: number;
+  lastActiveAt?: number;
+  isArchived?: boolean;
   createdAt: number;
 }
 
@@ -92,6 +102,7 @@ export interface UserAccount {
   phoneNumber: string;
   password?: string; // 8 characters minimum (letters or numbers)
   email?: string;
+  avatarUrl?: string;
   isSeller: boolean;
   hasCustomStore?: boolean;
   customStoreId?: string;

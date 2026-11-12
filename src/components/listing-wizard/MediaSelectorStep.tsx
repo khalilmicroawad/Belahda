@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, Upload, X, Check, RefreshCw, Zap, Sparkles } from 'lucide-react';
+import { Camera, Image as ImageIcon, Upload, X, Check, RefreshCw, Zap, Sparkles, Loader2 } from 'lucide-react';
+import { uploadFileToStorage } from '../../lib/supabase';
 
 interface MediaSelectorStepProps {
   mediaUrls: string[];
@@ -40,6 +41,7 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   const [flashOn, setFlashOn] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -83,6 +85,17 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
     }
   }, [isCameraActive, facingMode, isAr]);
 
+  const readFileAsDataUrl = (file: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (typeof ev.target?.result === 'string') resolve(ev.target.result);
+        else reject(new Error('Failed to read file'));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const snapPhoto = () => {
     if (videoRef.current && streamRef.current) {
       const canvas = document.createElement('canvas');
@@ -95,9 +108,26 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
           ctx.scale(-1, 1);
         }
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
-        onChange([...mediaUrls, dataUrl]);
         setIsCameraActive(false);
+        setIsUploading(true);
+        canvas.toBlob(
+          async (blob) => {
+            try {
+              if (blob) {
+                const publicUrl = await uploadFileToStorage(blob, 'listings');
+                onChange([...mediaUrls, publicUrl]);
+                return;
+              }
+            } catch {
+              const fallbackData = canvas.toDataURL('image/jpeg', 0.88);
+              onChange([...mediaUrls, fallbackData]);
+            } finally {
+              setIsUploading(false);
+            }
+          },
+          'image/jpeg',
+          0.88
+        );
         return;
       }
     }
@@ -107,20 +137,27 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
     setIsCameraActive(false);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result && typeof event.target.result === 'string') {
-          onChange([...mediaUrls, event.target.result]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    setIsUploading(true);
+    const uploadedUrls: string[] = [];
+    for (const file of Array.from(files)) {
+      try {
+        const publicUrl = await uploadFileToStorage(file, 'listings');
+        uploadedUrls.push(publicUrl);
+      } catch {
+        // Fallback to DataURL if storage bucket isn't provisioned yet
+        const dataUrl = await readFileAsDataUrl(file).catch(() => null);
+        if (dataUrl) uploadedUrls.push(dataUrl);
+      }
+    }
 
+    if (uploadedUrls.length > 0) {
+      onChange([...mediaUrls, ...uploadedUrls]);
+    }
+    setIsUploading(false);
     e.target.value = '';
   };
 
@@ -192,6 +229,13 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
           onChange={handleFileUpload}
         />
       </div>
+
+      {isUploading && (
+        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-2">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
+          <span>{isAr ? 'جاري رفع الصور إلى السحابة (app-uploads)...' : 'Uploading to Supabase Storage...'}</span>
+        </div>
+      )}
 
       {/* Camera Viewfinder */}
       {isCameraActive && (

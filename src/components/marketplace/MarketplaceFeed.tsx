@@ -16,7 +16,8 @@ import {
   X,
   ChevronDown,
   ArrowUpDown,
-  Check
+  Check,
+  ShieldCheck
 } from 'lucide-react';
 import { Listing, CategoryId, ItemCondition, UserAccount } from '../../types';
 import { CATEGORIES, MOSUL_DISTRICTS } from '../../data/categories';
@@ -29,6 +30,7 @@ interface MarketplaceFeedProps {
   onOpenCreate: () => void;
   onRequireAuth: (pendingAction: () => void, message?: string) => void;
   newlyPublishedId?: string | null;
+  resetTrigger?: number;
   lang?: 'ar' | 'en';
 }
 
@@ -40,6 +42,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
   onOpenCreate,
   onRequireAuth,
   newlyPublishedId,
+  resetTrigger,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
@@ -121,18 +124,34 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
     setSortOrder('newest');
   };
 
+  React.useEffect(() => {
+    if (resetTrigger) {
+      resetAllFilters();
+    }
+  }, [resetTrigger]);
+
   // Filter listings based on Date, City/District (Mosul), Category, and Delivery
   const filteredListings = useMemo(() => {
     const now = Date.now();
     let result = listings.filter((item) => {
-      // Search
+      // Real-Time Search by Title or Category
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesTitle = item.title.toLowerCase().includes(q);
-        const matchesDesc = item.description.toLowerCase().includes(q);
-        const matchesStore = item.storeName?.toLowerCase().includes(q);
-        const matchesDistrict = item.district?.toLowerCase().includes(q);
-        if (!matchesTitle && !matchesDesc && !matchesStore && !matchesDistrict) return false;
+        const q = searchQuery.toLowerCase().trim();
+        const matchesTitle = (item.title || '').toLowerCase().includes(q);
+
+        // Match category ID or Arabic/English display names
+        const catDef = CATEGORIES.find((c) => c.id === item.category);
+        const matchesCategory =
+          (item.category || '').toLowerCase().includes(q) ||
+          (catDef && (catDef.nameAr.toLowerCase().includes(q) || catDef.nameEn.toLowerCase().includes(q)));
+
+        const matchesDesc = (item.description || '').toLowerCase().includes(q);
+        const matchesStore = (item.storeName || '').toLowerCase().includes(q);
+        const matchesDistrict = (item.district || '').toLowerCase().includes(q);
+
+        if (!matchesTitle && !matchesCategory && !matchesDesc && !matchesStore && !matchesDistrict) {
+          return false;
+        }
       }
       // Category (الصنف)
       if (selectedCategory !== 'all' && item.category !== selectedCategory) {
@@ -179,22 +198,23 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
     <div className="flex flex-col min-h-full bg-slate-100 select-none pb-24 text-xs">
       {/* STICKY TOP FILTER BAR WITH CITY (MOSUL), CATEGORY, AND DATE CLASSIFICATIONS */}
       <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 pt-2.5 pb-2.5 shadow-2xs space-y-2">
-        {/* Row 1: Search Input + Sell CTA Button */}
+        {/* Row 1: Real-Time Search Bar (Title or Category) + Sell CTA Button */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 text-emerald-600 absolute right-3 top-2.5 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isAr ? 'ابحث في إعلانات الموصل (موبايل، سيارة، أثاث...)' : 'Search in Mosul...'}
-              className="w-full h-9 pr-9 pl-3 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400"
+              placeholder={isAr ? 'بحث فوري بالعنوان أو التصنيف (سيارات، موبايل، أثاث...)' : 'Real-time search by title or category...'}
+              className="w-full h-9 pr-9 pl-3 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all placeholder:text-slate-400 font-medium"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
                 className="absolute left-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                title="مسح البحث"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -210,6 +230,19 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             <span>{isAr ? 'أضف إعلانك' : 'Sell Item'}</span>
           </button>
         </div>
+
+        {/* Real-time search query feedback pill */}
+        {searchQuery.trim() && (
+          <div className="flex items-center justify-between text-[10px] text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200 animate-fadeIn">
+            <span className="font-semibold flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              {isAr ? `تصفية فورية بالعنوان والتصنيف: "${searchQuery}"` : `Live filtering for: "${searchQuery}"`}
+            </span>
+            <span className="font-bold font-mono text-emerald-800">
+              {filteredListings.length} {isAr ? 'نتائج مطابقة' : 'matches'}
+            </span>
+          </div>
+        )}
 
         {/* Row 2: Top Categorization Strip (الصنف) */}
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -464,10 +497,10 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                         </span>
                       )}
 
-                      {item.sellerType === 'commercial' && (
-                        <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm">
-                          <Store className="w-3 h-3" />
-                          <span>{isAr ? 'متجر' : 'Shop'}</span>
+                      {(item.sellerType === 'commercial' || item.isVerified) && (
+                        <span className="bg-emerald-700 text-white text-[9px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1 shadow-sm border border-emerald-500">
+                          <ShieldCheck className="w-3 h-3 text-emerald-300" />
+                          <span>{isAr ? 'مالك متجر موثق' : 'Verified Store'}</span>
                         </span>
                       )}
                     </div>

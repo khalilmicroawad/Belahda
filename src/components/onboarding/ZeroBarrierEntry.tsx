@@ -1,11 +1,13 @@
 import React from 'react';
-import { ShoppingBag, PlusCircle, ArrowLeft, ArrowRight, ShieldCheck, Zap, Globe, Sparkles, MapPin, Store } from 'lucide-react';
+import { ShoppingBag, PlusCircle, ArrowLeft, ArrowRight, ShieldCheck, Zap, Globe, Sparkles, MapPin, Store, Users } from 'lucide-react';
 import { CATEGORIES } from '../../data/categories';
 
 interface ZeroBarrierEntryProps {
   onSelectBuy: () => void;
   onSelectSell: () => void;
   onSelectStores?: () => void;
+  onOpenVisitorLog?: () => void;
+  visitorCount?: number;
   onToggleLang?: () => void;
   lang?: 'ar' | 'en';
 }
@@ -14,6 +16,8 @@ export const ZeroBarrierEntry: React.FC<ZeroBarrierEntryProps> = ({
   onSelectBuy,
   onSelectSell,
   onSelectStores,
+  onOpenVisitorLog,
+  visitorCount = 0,
   onToggleLang,
   lang = 'ar'
 }) => {
@@ -43,16 +47,32 @@ export const ZeroBarrierEntry: React.FC<ZeroBarrierEntryProps> = ({
           </div>
         </div>
 
-        {onToggleLang && (
-          <button
-            type="button"
-            onClick={onToggleLang}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs"
-          >
-            <Globe className="w-3 h-3 text-slate-500" />
-            <span>{isAr ? 'English' : 'العربية'}</span>
-          </button>
-        )}
+        <div className="flex items-center gap-1.5">
+          {onOpenVisitorLog && (
+            <button
+              type="button"
+              onClick={onOpenVisitorLog}
+              className="flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 text-[10px] font-bold transition-all shadow-2xs active:scale-95"
+              title="سجل الزوار"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Users className="w-3 h-3 text-emerald-700" />
+              <span className="font-mono tabular-nums">{visitorCount > 0 ? visitorCount.toLocaleString() : '...'}</span>
+              <span className="text-[9px] text-emerald-700">{isAr ? 'زائر' : 'visits'}</span>
+            </button>
+          )}
+
+          {onToggleLang && (
+            <button
+              type="button"
+              onClick={onToggleLang}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 active:scale-95 transition-all shadow-2xs"
+            >
+              <Globe className="w-3 h-3 text-slate-500" />
+              <span>{isAr ? 'English' : 'العربية'}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Hero Welcome Message with Compact Typography */}

@@ -263,8 +263,14 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-500">
-                    {listing.sellerType === 'commercial' ? 'محل معتمد في الموصل' : 'بائع فردي مسجل'}
+                  <span className="text-[10px] text-slate-500 flex items-center gap-1">
+                    {listing.sellerType === 'commercial' ? (
+                      <span className="text-emerald-800 font-bold bg-emerald-100/80 px-1.5 py-0.2 rounded border border-emerald-300">
+                        مالك متجر موثق
+                      </span>
+                    ) : (
+                      'بائع فردي مسجل'
+                    )}
                   </span>
                 </div>
               </div>

@@ -156,6 +156,13 @@ export const INITIAL_LISTINGS: Listing[] = [
   }
 ];
 
+import {
+  fetchSupabaseListings,
+  saveSupabaseListing,
+  deleteSupabaseListing,
+  supabase
+} from '../lib/supabase';
+
 const STORAGE_KEY = 'souq_belahdha_listings_db';
 const USER_KEY = 'souq_belahdha_user_account';
 
@@ -168,10 +175,36 @@ export function getStoredListings(): Listing[] {
       return INITIAL_LISTINGS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : INITIAL_LISTINGS;
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_LISTINGS;
   } catch {
     return INITIAL_LISTINGS;
   }
+}
+
+export async function fetchDatabaseListings(): Promise<Listing[]> {
+  try {
+    const supaListings = await fetchSupabaseListings();
+    if (supaListings && supaListings.length > 0) {
+      saveListings(supaListings);
+      return supaListings;
+    }
+  } catch (err) {
+    console.warn('Supabase listings fetch error:', err);
+  }
+
+  try {
+    const res = await fetch('/api/listings');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        saveListings(data);
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('API listings fetch error, using local fallback:', err);
+  }
+  return getStoredListings();
 }
 
 export function saveListings(listings: Listing[]): void {
@@ -187,7 +220,29 @@ export function addListingToTop(newListing: Listing): Listing[] {
   const current = getStoredListings();
   const updated = [newListing, ...current.filter((item) => item.id !== newListing.id)];
   saveListings(updated);
+
+  if (typeof window !== 'undefined') {
+    // Sync to Supabase listings table
+    supabase.auth
+      .getSession()
+      .then(({ data }) => saveSupabaseListing(newListing, data.session?.user?.id))
+      .catch(() => {});
+
+    // Also sync to Express/Cloud SQL backend
+    fetch('/api/listings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newListing),
+    }).catch((err) => console.warn('Could not sync listing to API:', err));
+  }
+
   return updated;
+}
+
+export function deleteListingFromDb(id: string): void {
+  if (typeof window !== 'undefined') {
+    deleteSupabaseListing(id).catch(() => {});
+  }
 }
 
 // User Account Management

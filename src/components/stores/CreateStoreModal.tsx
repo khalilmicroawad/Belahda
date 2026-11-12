@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import confetti from 'canvas-confetti';
 import {
   X,
@@ -11,32 +11,66 @@ import {
   Phone,
   MessageCircle,
   Building,
-  Upload
+  Upload,
+  Loader2
 } from 'lucide-react';
-import { StoreProfile, UserAccount, CategoryId, StoreLocation } from '../../types';
+import { StoreProfile, UserAccount, CategoryId, StoreLocation, StoreSocialLinks, Listing } from '../../types';
 import { MOSUL_DISTRICTS, CATEGORIES } from '../../data/categories';
 import { addOrUpdateStore } from '../../data/mockStores';
 import { InteractiveMapSelector } from '../listing-wizard/InteractiveMapSelector';
+import { REQUIRED_POSTS_FOR_STORE, calculateStoreUnlockProgress } from '../../utils/antiSpam';
+import { uploadFileToStorage } from '../../lib/supabase';
 
 interface CreateStoreModalProps {
   currentUser: UserAccount | null;
   listingsCount: number;
+  userListings?: Listing[];
   onStoreCreated: (store: StoreProfile) => void;
   onClose: () => void;
   onFastSeedListings?: () => void;
   lang?: 'ar' | 'en';
 }
 
+const LOGO_PRESETS = [
+  { name: 'متجر عام', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80' },
+  { name: 'إلكترونيات', url: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=150&q=80' },
+  { name: 'حرف وتراث', url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=150&q=80' },
+  { name: 'أزياء وملابس', url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=150&q=80' }
+];
+
+const COVER_PRESETS = [
+  { name: 'معرض حديث', url: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=800&q=80' },
+  { name: 'سوق إلكترونيات', url: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80' },
+  { name: 'تراث موصلي', url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80' }
+];
+
 export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
   currentUser,
   listingsCount,
+  userListings,
   onStoreCreated,
   onClose,
   onFastSeedListings,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
-  const isEligible = listingsCount >= 10;
+
+  const unlockStats = React.useMemo(() => {
+    if (userListings && userListings.length > 0) {
+      return calculateStoreUnlockProgress(userListings);
+    }
+    const valid = listingsCount;
+    const isUnlocked = valid >= REQUIRED_POSTS_FOR_STORE;
+    return {
+      validCount: valid,
+      isUnlocked,
+      remainingCount: Math.max(0, REQUIRED_POSTS_FOR_STORE - valid),
+      percentage: Math.min(100, Math.round((valid / REQUIRED_POSTS_FOR_STORE) * 100)),
+      spamCount: 0
+    };
+  }, [userListings, listingsCount]);
+
+  const isEligible = unlockStats.isUnlocked;
 
   const [name, setName] = useState('متجر الموصل الحديث');
   const [district, setDistrict] = useState('حي الزهور');
@@ -47,9 +81,47 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
   );
   const [whatsappNumber, setWhatsappNumber] = useState(currentUser?.phoneNumber || '07701234567');
   const [phoneNumber, setPhoneNumber] = useState(currentUser?.phoneNumber || '07701234567');
+  const [instagram, setInstagram] = useState('@mosul_store');
+  const [facebook, setFacebook] = useState('facebook.com/mosul.store');
   const [deliveryAvailable, setDeliveryAvailable] = useState(true);
   const [deliveryNotes, setDeliveryNotes] = useState('توصيل متوفر لكافة أحياء الموصل');
-  const [coverUrl, setCoverUrl] = useState('/src/assets/images/listing_iphone_pro_1794306234850.jpg');
+  
+  // Store Branding: Logo & Cover Banner
+  const [logoUrl, setLogoUrl] = useState(LOGO_PRESETS[0].url);
+  const [coverUrl, setCoverUrl] = useState(COVER_PRESETS[0].url);
+  const [uploadingBranding, setUploadingBranding] = useState<'logo' | 'cover' | null>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+  const coverFileRef = useRef<HTMLInputElement>(null);
+
+  const handleBrandingUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    kind: 'logo' | 'cover'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBranding(kind);
+    try {
+      const publicUrl = await uploadFileToStorage(
+        file,
+        kind === 'logo' ? 'store-logos' : 'store-covers'
+      );
+      if (kind === 'logo') setLogoUrl(publicUrl);
+      else setCoverUrl(publicUrl);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (typeof ev.target?.result === 'string') {
+          if (kind === 'logo') setLogoUrl(ev.target.result);
+          else setCoverUrl(ev.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingBranding(null);
+      e.target.value = '';
+    }
+  };
+
   const [storeLocation, setStoreLocation] = useState<StoreLocation>({
     lat: 36.3575,
     lng: 43.1558,
@@ -66,8 +138,8 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
     if (!isEligible) {
       setError(
         isAr
-          ? `عذراً، يجب إضافة أكثر من 10 إعلانات أولاً لفتح متجرك الخاص (أضفت حالياً ${listingsCount} من 10).`
-          : 'You need at least 10 listings to unlock your store.'
+          ? `عذراً، يجب نشر ${REQUIRED_POSTS_FOR_STORE} إعلاناً حقيقياً وغير مكرر أولاً لفتح متجرك الخاص (أضفت حالياً ${unlockStats.validCount} من ${REQUIRED_POSTS_FOR_STORE}).`
+          : `You need at least ${REQUIRED_POSTS_FOR_STORE} valid posts to unlock your store.`
       );
       return;
     }
@@ -76,6 +148,11 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
       setError(isAr ? 'يرجى كتابة اسم المتجر' : 'Please enter store name');
       return;
     }
+
+    const socialLinks: StoreSocialLinks = {
+      instagram: instagram.trim() || undefined,
+      facebook: facebook.trim() || undefined,
+    };
 
     const newStore: StoreProfile = {
       id: `store-${Date.now()}`,
@@ -89,14 +166,18 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
       category,
       whatsappNumber: whatsappNumber.trim(),
       phoneNumber: phoneNumber.trim(),
+      socialLinks,
+      logoUrl: logoUrl.trim() || undefined,
+      coverUrl: coverUrl.trim() || undefined,
       deliveryAvailable,
       deliveryNotes: deliveryAvailable ? deliveryNotes.trim() : undefined,
       isVerified: true,
-      totalListingsCount: Math.max(listingsCount, 11),
+      totalListingsCount: Math.max(unlockStats.validCount, REQUIRED_POSTS_FOR_STORE),
       rating: 5.0,
-      coverUrl,
       lat: storeLocation.lat,
       lng: storeLocation.lng,
+      lastActiveAt: Date.now(),
+      isArchived: false,
       createdAt: Date.now()
     };
 
@@ -123,7 +204,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                 <Sparkles className="w-3 h-3 text-emerald-400" />
               </h2>
               <span className="text-[10px] text-slate-400">
-                {isAr ? 'ميزة المتاجر المعتمدة للمعلنين النشطين' : 'Unlocked after 10+ listings'}
+                {isAr ? `يفتح بعد نشر ${REQUIRED_POSTS_FOR_STORE} إعلاناً معتمداً` : `Unlocked after ${REQUIRED_POSTS_FOR_STORE} approved listings`}
               </span>
             </div>
           </div>
@@ -140,10 +221,10 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
         <div className="p-3 bg-slate-50 border-b border-slate-100 text-[11px] space-y-1.5">
           <div className="flex items-center justify-between font-bold">
             <span className="text-slate-800">
-              {isAr ? 'شرط فتح المتجر (أكثر من 10 إعلانات):' : 'Unlock Requirement (10+ posts):'}
+              {isAr ? `شرط فتح المتجر (${REQUIRED_POSTS_FOR_STORE} إعلاناً حقيقياً غير مكرر):` : `Unlock Requirement (${REQUIRED_POSTS_FOR_STORE}+ posts):`}
             </span>
             <span className={`font-mono ${isEligible ? 'text-emerald-700' : 'text-amber-700'}`}>
-              {listingsCount} / 10 {isAr ? 'إعلانات' : 'items'}
+              {unlockStats.validCount} / {REQUIRED_POSTS_FOR_STORE} {isAr ? 'إعلانات صالحة' : 'valid posts'}
             </span>
           </div>
 
@@ -152,16 +233,22 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
               className={`h-full rounded-full transition-all duration-500 ${
                 isEligible ? 'bg-emerald-600' : 'bg-amber-500'
               }`}
-              style={{ width: `${Math.min(100, (listingsCount / 10) * 100)}%` }}
+              style={{ width: `${unlockStats.percentage}%` }}
             />
           </div>
+
+          {unlockStats.spamCount > 0 && (
+            <div className="text-[10px] text-amber-700 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+              ⚠️ {isAr ? `تم استبعاد ${unlockStats.spamCount} إعلانات مكررة أو ناقصة من احتساب شرط المتجر` : `${unlockStats.spamCount} spam posts excluded`}
+            </div>
+          )}
 
           {!isEligible && (
             <div className="pt-1 flex items-center justify-between">
               <span className="text-[10px] text-slate-500">
                 {isAr
-                  ? `أضف ${10 - listingsCount} إعلانات إضافية لتفعيل متجرك`
-                  : `Add ${10 - listingsCount} more listings to unlock`}
+                  ? `أضف ${unlockStats.remainingCount} إعلانات إضافية لتفعيل متجرك`
+                  : `Add ${unlockStats.remainingCount} more listings to unlock`}
               </span>
               {onFastSeedListings && (
                 <button
@@ -169,7 +256,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                   onClick={onFastSeedListings}
                   className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 transition-colors"
                 >
-                  {isAr ? 'توليد 10 إعلانات للتجربة الآن' : 'Add 10 Sample Items'}
+                  {isAr ? `توليد ${REQUIRED_POSTS_FOR_STORE} إعلاناً للتجربة` : 'Add 30 Sample Items'}
                 </button>
               )}
             </div>
@@ -178,7 +265,7 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
           {isEligible && (
             <div className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>{isAr ? 'تهانينا! متجرك مؤهل للنشر الفوري وعرض كافة منتجاتك' : 'Unlocked & ready!'}</span>
+              <span>{isAr ? 'تهانينا! حققت شرط الـ 30 إعلاناً، متجرك مؤهل للإطلاق الفوري' : 'Unlocked & ready!'}</span>
             </div>
           )}
         </div>
@@ -294,6 +381,134 @@ export const CreateStoreModal: React.FC<CreateStoreModalProps> = ({
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 className="w-full h-8 px-2.5 rounded-lg bg-slate-50 border border-slate-300 text-xs font-mono tabular-nums text-left"
               />
+            </div>
+          </div>
+
+          {/* Social Media Links */}
+          <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+            <span className="text-[11px] font-bold text-slate-800 block">
+              {isAr ? 'روابط التواصل الاجتماعي للمتجر:' : 'Social Media Links:'}
+            </span>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] text-slate-600 block mb-0.5">إنستغرام Instagram</label>
+                <input
+                  type="text"
+                  value={instagram}
+                  onChange={(e) => setInstagram(e.target.value)}
+                  placeholder="@store_name"
+                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs text-left font-mono"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-600 block mb-0.5">فيسبوك Facebook</label>
+                <input
+                  type="text"
+                  value={facebook}
+                  onChange={(e) => setFacebook(e.target.value)}
+                  placeholder="facebook.com/..."
+                  className="w-full h-8 px-2.5 rounded-lg bg-white border border-slate-300 text-xs text-left font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Store Branding: Logo & Cover Banner */}
+          <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+            <span className="text-[11px] font-bold text-slate-800 block">
+              {isAr ? 'هوية وشعار المتجر (Branding):' : 'Store Branding:'}
+            </span>
+
+            {/* Logo Selector */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] text-slate-600">
+                  {isAr ? 'شعار المتجر (Logo):' : 'Store Logo:'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => logoFileRef.current?.click()}
+                  disabled={uploadingBranding === 'logo'}
+                  className="text-[9px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1"
+                >
+                  {uploadingBranding === 'logo' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                  <span>{isAr ? 'رفع شعار' : 'Upload Logo'}</span>
+                </button>
+                <input
+                  ref={logoFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleBrandingUpload(e, 'logo')}
+                />
+              </div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <img
+                  src={logoUrl}
+                  alt="Store Logo"
+                  className="w-10 h-10 rounded-xl object-cover border-2 border-emerald-500 shrink-0"
+                />
+                <div className="flex-1 flex gap-1 overflow-x-auto py-0.5">
+                  {LOGO_PRESETS.map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setLogoUrl(preset.url)}
+                      className={`px-2 py-1 rounded-lg text-[9px] font-bold whitespace-nowrap transition-colors border ${
+                        logoUrl === preset.url
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Cover Banner Selector */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] text-slate-600">
+                  {isAr ? 'غلاف واجهة المتجر (Cover Banner):' : 'Cover Banner:'}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => coverFileRef.current?.click()}
+                  disabled={uploadingBranding === 'cover'}
+                  className="text-[9px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1"
+                >
+                  {uploadingBranding === 'cover' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Upload className="w-2.5 h-2.5" />}
+                  <span>{isAr ? 'رفع غلاف' : 'Upload Cover'}</span>
+                </button>
+                <input
+                  ref={coverFileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleBrandingUpload(e, 'cover')}
+                />
+              </div>
+              <div className="relative h-14 rounded-xl overflow-hidden border border-slate-200 mb-1.5">
+                <img src={coverUrl} alt="Store Cover" className="w-full h-full object-cover" />
+              </div>
+              <div className="flex gap-1 overflow-x-auto py-0.5">
+                {COVER_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => setCoverUrl(preset.url)}
+                    className={`px-2 py-1 rounded-lg text-[9px] font-bold whitespace-nowrap transition-colors border ${
+                      coverUrl === preset.url
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {preset.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 

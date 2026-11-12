@@ -49,6 +49,18 @@ export const CATEGORIES: CategoryDef[] = [
     nameAr: 'ألعاب ومستلزمات',
     nameEn: 'Hobbies',
     iconName: 'Package'
+  },
+  {
+    id: 'handcrafts',
+    nameAr: 'حرف يدوية وتراثيات',
+    nameEn: 'Handcrafts',
+    iconName: 'Sparkles'
+  },
+  {
+    id: 'services',
+    nameAr: 'خدمات وصيانة',
+    nameEn: 'Services',
+    iconName: 'Wrench'
   }
 ];
 
