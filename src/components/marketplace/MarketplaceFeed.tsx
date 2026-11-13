@@ -478,8 +478,9 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   {/* Visual Header */}
                   <div className="relative aspect-16/10 bg-slate-100 overflow-hidden">
                     <img
-                      src={item.mediaUrls[0]}
+                      src={item.thumbnailUrl || item.mediaUrls[0]}
                       alt={item.title}
+                      loading="lazy"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
                     />

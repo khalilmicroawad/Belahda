@@ -94,6 +94,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   });
 
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+  const [isMediaUploading, setIsMediaUploading] = useState<boolean>(false);
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>(undefined);
+  const [fullImageUrl, setFullImageUrl] = useState<string | undefined>(undefined);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleNext = () => {
@@ -183,6 +186,8 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
       storeName: sellerType === 'commercial' ? storeName.trim() : undefined,
       storeLocation: storeLocation,
       mediaUrls,
+      thumbnailUrl: thumbnailUrl || mediaUrls[0],
+      fullImageUrl: fullImageUrl || mediaUrls[0],
       contactOptions: {
         ...contactOptions,
         whatsappNumber: sellerPhone.trim(),
@@ -290,7 +295,16 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             mediaUrls={mediaUrls}
             onChange={(urls) => {
               setMediaUrls(urls);
+              if (urls.length === 0) {
+                setThumbnailUrl(undefined);
+                setFullImageUrl(undefined);
+              }
               setValidationError(null);
+            }}
+            onUploadingChange={(uploading) => setIsMediaUploading(uploading)}
+            onDualMediaUploaded={(thumb, full) => {
+              setThumbnailUrl((prev) => prev || thumb);
+              setFullImageUrl((prev) => prev || full);
             }}
             lang={lang}
           />
@@ -882,23 +896,30 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         {currentStep < 6 ? (
           <button
             type="button"
+            disabled={isMediaUploading}
             onClick={handleNext}
-            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
+            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 active:scale-98 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
           >
-            <span>{isAr ? 'المتابعة للخطوة التالية' : 'Next Step'}</span>
-            {isAr ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <span>
+              {isMediaUploading
+                ? (isAr ? 'جاري رفع الصورة...' : 'Uploading image...')
+                : (isAr ? 'المتابعة للخطوة التالية' : 'Next Step')}
+            </span>
+            {!isMediaUploading && (isAr ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />)}
           </button>
         ) : (
           <button
             type="button"
-            disabled={isPublishing}
+            disabled={isPublishing || isMediaUploading}
             onClick={handlePublish}
-            className="w-full h-11.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-bold text-sm shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
+            className="w-full h-11.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 active:scale-98 text-white font-bold text-sm shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2"
           >
-            {isPublishing ? (
+            {isPublishing || isMediaUploading ? (
               <span className="flex items-center gap-2">
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {isAr ? 'جاري النشر الفوري...' : 'Publishing...'}
+                {isMediaUploading
+                  ? (isAr ? 'جاري رفع الصورة...' : 'Uploading image...')
+                  : (isAr ? 'جاري النشر الفوري...' : 'Publishing...')}
               </span>
             ) : (
               <span className="flex items-center gap-1.5">

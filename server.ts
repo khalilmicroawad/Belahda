@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { db } from './src/db/index.ts';
 import { listings, stores, visitors, users } from './src/db/schema.ts';
@@ -13,6 +14,36 @@ async function startServer() {
   const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
+
+  // 0. ImageKit Authentication Endpoint for secure client-side uploads
+  app.get('/api/imagekit/auth', (req, res) => {
+    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY || '';
+    const publicKey = process.env.IMAGEKIT_PUBLIC_KEY || process.env.VITE_IMAGEKIT_PUBLIC_KEY || '';
+    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || process.env.VITE_IMAGEKIT_URL_ENDPOINT || '';
+
+    if (!privateKey || !publicKey || !urlEndpoint) {
+      return res.status(503).json({
+        configured: false,
+        error: 'ImageKit environment variables are not configured on the server.',
+      });
+    }
+
+    const token = crypto.randomUUID();
+    const expire = Math.floor(Date.now() / 1000) + 2400; // 40 minutes
+    const signature = crypto
+      .createHmac('sha1', privateKey)
+      .update(token + expire)
+      .digest('hex');
+
+    res.json({
+      configured: true,
+      token,
+      expire,
+      signature,
+      publicKey,
+      urlEndpoint,
+    });
+  });
 
   // 1. Visitor Counter & Logs API (عداد وسجل الزوار)
   app.get('/api/visitors', async (req, res) => {

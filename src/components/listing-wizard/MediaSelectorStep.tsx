@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, Upload, X, Check, RefreshCw, Zap, Sparkles, Loader2 } from 'lucide-react';
-import { uploadFileToStorage } from '../../lib/supabase';
+import { Camera, Image as ImageIcon, Upload, X, Check, RefreshCw, Zap, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { performDualProductImageUpload } from '../../lib/mediaUpload';
 
 interface MediaSelectorStepProps {
   mediaUrls: string[];
   onChange: (urls: string[]) => void;
+  onUploadingChange?: (uploading: boolean) => void;
+  onDualMediaUploaded?: (thumbnailUrl: string, fullImageUrl: string) => void;
   lang?: 'ar' | 'en';
 }
 
@@ -34,6 +36,8 @@ const PRESET_ASSETS = [
 export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   mediaUrls,
   onChange,
+  onUploadingChange,
+  onDualMediaUploaded,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
@@ -42,10 +46,16 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  const setUploadingState = (val: boolean) => {
+    setIsUploading(val);
+    if (onUploadingChange) onUploadingChange(val);
+  };
 
   useEffect(() => {
     if (isCameraActive) {
@@ -109,24 +119,33 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         }
         ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
         setIsCameraActive(false);
-        setIsUploading(true);
+        setUploadingState(true);
+        setUploadStatusMsg(null);
         canvas.toBlob(
           async (blob) => {
             try {
               if (blob) {
-                const publicUrl = await uploadFileToStorage(blob, 'listings');
-                onChange([...mediaUrls, publicUrl]);
+                const res = await performDualProductImageUpload(blob);
+                onChange([...mediaUrls, res.fullImageUrl]);
+                if (onDualMediaUploaded) {
+                  onDualMediaUploaded(res.thumbnailUrl, res.fullImageUrl);
+                }
+                setUploadStatusMsg(
+                  isAr
+                    ? `تم حفظ الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية بنجاح ✓`
+                    : `Saved thumbnail (${res.thumbnailSizeKB} KB) & full image ✓`
+                );
                 return;
               }
             } catch {
               const fallbackData = canvas.toDataURL('image/jpeg', 0.88);
               onChange([...mediaUrls, fallbackData]);
             } finally {
-              setIsUploading(false);
+              setUploadingState(false);
             }
           },
           'image/jpeg',
-          0.88
+          0.9
         );
         return;
       }
@@ -141,23 +160,32 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setIsUploading(true);
-    const uploadedUrls: string[] = [];
+    setUploadingState(true);
+    setUploadStatusMsg(null);
+    const uploadedFullUrls: string[] = [];
+
     for (const file of Array.from(files)) {
       try {
-        const publicUrl = await uploadFileToStorage(file, 'listings');
-        uploadedUrls.push(publicUrl);
+        const res = await performDualProductImageUpload(file);
+        uploadedFullUrls.push(res.fullImageUrl);
+        if (onDualMediaUploaded) {
+          onDualMediaUploaded(res.thumbnailUrl, res.fullImageUrl);
+        }
+        setUploadStatusMsg(
+          isAr
+            ? `تم رفع الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية ${res.usedImageKit ? 'عبر ImageKit' : ''} بنجاح ✓`
+            : `Uploaded thumbnail (${res.thumbnailSizeKB} KB) & full-res image ✓`
+        );
       } catch {
-        // Fallback to DataURL if storage bucket isn't provisioned yet
         const dataUrl = await readFileAsDataUrl(file).catch(() => null);
-        if (dataUrl) uploadedUrls.push(dataUrl);
+        if (dataUrl) uploadedFullUrls.push(dataUrl);
       }
     }
 
-    if (uploadedUrls.length > 0) {
-      onChange([...mediaUrls, ...uploadedUrls]);
+    if (uploadedFullUrls.length > 0) {
+      onChange([...mediaUrls, ...uploadedFullUrls]);
     }
-    setIsUploading(false);
+    setUploadingState(false);
     e.target.value = '';
   };
 
@@ -191,7 +219,8 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         <button
           type="button"
           onClick={() => setIsCameraActive(true)}
-          className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-sm transition-all"
+          disabled={isUploading}
+          className="flex flex-col items-center justify-center p-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 active:scale-95 text-white shadow-sm transition-all"
         >
           <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center mb-1.5">
             <Camera className="w-4.5 h-4.5 text-white" />
@@ -207,7 +236,8 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white hover:bg-slate-50 active:scale-95 text-slate-900 shadow-2xs border border-slate-200 transition-all"
+          disabled={isUploading}
+          className="flex flex-col items-center justify-center p-3 rounded-2xl bg-white hover:bg-slate-50 disabled:opacity-60 active:scale-95 text-slate-900 shadow-2xs border border-slate-200 transition-all"
         >
           <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center mb-1.5">
             <ImageIcon className="w-4.5 h-4.5 text-slate-700" />
@@ -231,9 +261,21 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
       </div>
 
       {isUploading && (
-        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex items-center gap-2">
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-          <span>{isAr ? 'جاري رفع الصور إلى السحابة (app-uploads)...' : 'Uploading to Supabase Storage...'}</span>
+        <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] font-bold flex items-center gap-2 animate-fadeIn">
+          <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" />
+          <div>
+            <span className="block">{isAr ? 'جاري رفع الصورة... (Uploading image...)' : 'Uploading image...'}</span>
+            <span className="text-[9px] text-emerald-700 font-normal">
+              {isAr ? 'توليد نسخة مصغرة لـ Supabase ونسخة أصلية لـ ImageKit بالتوازي' : 'Uploading compressed thumbnail & full-resolution photo in parallel'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!isUploading && uploadStatusMsg && (
+        <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold flex items-center gap-1.5 animate-fadeIn">
+          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          <span>{uploadStatusMsg}</span>
         </div>
       )}
 

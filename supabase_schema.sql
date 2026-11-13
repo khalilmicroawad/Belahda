@@ -44,6 +44,8 @@ create table if not exists public.listings (
   delivery_available boolean not null default true,
   delivery_notes text,
   media_urls jsonb not null default '[]'::jsonb,
+  thumbnail_url text,
+  full_image_url text,
   contact_options jsonb not null default '{}'::jsonb,
   created_at_label text not null default 'اليوم',
   created_timestamp bigint not null default (extract(epoch from now()) * 1000)::bigint,
@@ -52,6 +54,20 @@ create table if not exists public.listings (
   seller_phone text not null default '',
   seller_avatar text,
   is_verified boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+-- 2B-2. Posts Table (dual-image post records)
+create table if not exists public.posts (
+  id text primary key,
+  user_id uuid references auth.users(id) on delete set null,
+  title text not null,
+  description text not null default '',
+  price numeric not null default 0,
+  currency text not null default 'د.ع',
+  category text not null default 'electronics',
+  thumbnail_url text,
+  full_image_url text,
   created_at timestamptz not null default now()
 );
 
@@ -135,6 +151,7 @@ create trigger on_auth_user_created
 
 alter table public.profiles enable row level security;
 alter table public.listings enable row level security;
+alter table public.posts enable row level security;
 alter table public.stores enable row level security;
 alter table public.visitor_logs enable row level security;
 
@@ -171,6 +188,21 @@ create policy "Users can update own listings"
 drop policy if exists "Users can delete own listings" on public.listings;
 create policy "Users can delete own listings"
   on public.listings for delete
+  using (auth.uid() = user_id or user_id is null);
+
+-- Posts Policies
+drop policy if exists "Posts are viewable by everyone" on public.posts;
+create policy "Posts are viewable by everyone"
+  on public.posts for select using (true);
+
+drop policy if exists "Anyone or authenticated users can create posts" on public.posts;
+create policy "Anyone or authenticated users can create posts"
+  on public.posts for insert
+  with check (auth.uid() = user_id or user_id is null);
+
+drop policy if exists "Users can update own posts" on public.posts;
+create policy "Users can update own posts"
+  on public.posts for update
   using (auth.uid() = user_id or user_id is null);
 
 -- Stores Policies
@@ -231,3 +263,27 @@ drop policy if exists "Users can delete own uploads in app-uploads" on storage.o
 create policy "Users can delete own uploads in app-uploads"
   on storage.objects for delete
   using (bucket_id = 'app-uploads' and (auth.uid() = owner or owner is null));
+
+-- ============================================================================
+-- 6. STORAGE BUCKET ('thumbnails') FOR LIGHTWEIGHT PRODUCT THUMBNAILS
+-- ============================================================================
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'thumbnails',
+  'thumbnails',
+  true,
+  524288, -- 512KB limit for compressed thumbnails
+  array['image/webp', 'image/jpeg', 'image/png']
+)
+on conflict (id) do update set public = true;
+
+drop policy if exists "Public read access for thumbnails" on storage.objects;
+create policy "Public read access for thumbnails"
+  on storage.objects for select
+  using (bucket_id = 'thumbnails');
+
+drop policy if exists "Anyone can upload thumbnails" on storage.objects;
+create policy "Anyone can upload thumbnails"
+  on storage.objects for insert
+  with check (bucket_id = 'thumbnails');

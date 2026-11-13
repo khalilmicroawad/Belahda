@@ -168,6 +168,16 @@ export async function uploadFileToStorage(
 // ==========================================
 
 function mapRowToListing(row: any): Listing {
+  const fullImg = row.full_image_url || row.image_url || undefined;
+  const thumbImg = row.thumbnail_url || undefined;
+  const fallbackUrls = Array.isArray(row.media_urls) && row.media_urls.length > 0
+    ? row.media_urls
+    : fullImg
+    ? [fullImg]
+    : thumbImg
+    ? [thumbImg]
+    : [];
+
   return {
     id: row.id,
     title: row.title,
@@ -185,7 +195,9 @@ function mapRowToListing(row: any): Listing {
     district: row.district || 'حي الزهور',
     deliveryAvailable: Boolean(row.delivery_available),
     deliveryNotes: row.delivery_notes || undefined,
-    mediaUrls: Array.isArray(row.media_urls) ? row.media_urls : [],
+    mediaUrls: fallbackUrls,
+    thumbnailUrl: thumbImg || fallbackUrls[0],
+    fullImageUrl: fullImg || fallbackUrls[0],
     contactOptions: row.contact_options || { directChat: true, whatsapp: true, phoneCall: true },
     createdAt: row.created_at_label || 'اليوم',
     createdTimestamp: Number(row.created_timestamp || Date.now()),
@@ -212,6 +224,9 @@ export async function fetchSupabaseListings(): Promise<Listing[] | null> {
 }
 
 export async function saveSupabaseListing(listing: Listing, authUserId?: string): Promise<boolean> {
+  const thumbnailUrl = listing.thumbnailUrl || listing.mediaUrls?.[0] || null;
+  const fullImageUrl = listing.fullImageUrl || listing.mediaUrls?.[0] || null;
+
   const { error } = await supabase.from('listings').upsert(
     {
       id: listing.id,
@@ -232,6 +247,8 @@ export async function saveSupabaseListing(listing: Listing, authUserId?: string)
       delivery_available: Boolean(listing.deliveryAvailable),
       delivery_notes: listing.deliveryNotes || null,
       media_urls: listing.mediaUrls || [],
+      thumbnail_url: thumbnailUrl,
+      full_image_url: fullImageUrl,
       contact_options: listing.contactOptions || {},
       created_at_label: listing.createdAt || 'الآن',
       created_timestamp: Number(listing.createdTimestamp || Date.now()),
@@ -243,6 +260,26 @@ export async function saveSupabaseListing(listing: Listing, authUserId?: string)
     },
     { onConflict: 'id' }
   );
+
+  // Also sync directly to `posts` table (with thumbnail_url & full_image_url) if present
+  supabase
+    .from('posts')
+    .upsert(
+      {
+        id: listing.id,
+        user_id: authUserId || listing.sellerId || null,
+        title: listing.title,
+        description: listing.description,
+        price: Number(listing.price || 0),
+        currency: listing.currency || 'د.ع',
+        category: listing.category,
+        thumbnail_url: thumbnailUrl,
+        full_image_url: fullImageUrl,
+        created_at: new Date(listing.createdTimestamp || Date.now()).toISOString(),
+      },
+      { onConflict: 'id' }
+    )
+    .then(() => {}, () => {});
 
   if (error) {
     console.warn('Supabase saveListing warning:', error.message);

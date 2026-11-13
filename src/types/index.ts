@@ -85,6 +85,8 @@ export interface Listing {
   deliveryAvailable: boolean; // متوفر توصيل أو غير متوفر
   deliveryNotes?: string;
   mediaUrls: string[];
+  thumbnailUrl?: string;
+  fullImageUrl?: string;
   contactOptions: ContactPreferences;
   createdAt: string; // Relative display text
   createdTimestamp: number;

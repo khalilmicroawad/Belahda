@@ -103,8 +103,41 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
     }
   };
 
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const fullResPhotos = listing.mediaUrls.length > 0
+    ? listing.mediaUrls
+    : listing.fullImageUrl
+    ? [listing.fullImageUrl]
+    : listing.thumbnailUrl
+    ? [listing.thumbnailUrl]
+    : [];
+  const activePhotoSrc =
+    (activePhotoIdx === 0 && listing.fullImageUrl) ||
+    fullResPhotos[activePhotoIdx] ||
+    fullResPhotos[0];
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-3 animate-fadeIn select-none text-xs">
+      {isLightboxOpen && (
+        <div
+          onClick={() => setIsLightboxOpen(false)}
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-3 animate-fadeIn cursor-zoom-out"
+        >
+          <button
+            type="button"
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/15 hover:bg-white/25 text-white"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+          <img
+            src={activePhotoSrc}
+            alt={listing.title}
+            referrerPolicy="no-referrer"
+            className="max-w-full max-h-[88vh] object-contain rounded-xl shadow-2xl"
+          />
+        </div>
+      )}
       <div className="bg-white w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-white sticky top-0 z-10">
@@ -140,10 +173,13 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
         {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-          {/* Main Visual */}
-          <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 shadow-inner">
+          {/* Main Visual (Full-Resolution Image from ImageKit) */}
+          <div
+            onClick={() => setIsLightboxOpen(true)}
+            className="relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 shadow-inner cursor-zoom-in"
+          >
             <img
-              src={listing.mediaUrls[activePhotoIdx] || listing.mediaUrls[0]}
+              src={activePhotoSrc}
               alt={listing.title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover"
@@ -162,9 +198,9 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
 
             {/* Pagination Dots */}
-            {listing.mediaUrls.length > 1 && (
-              <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1">
-                {listing.mediaUrls.map((_, i) => (
+            {fullResPhotos.length > 1 && (
+              <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                {fullResPhotos.map((_, i) => (
                   <button
                     key={i}
                     onClick={() => setActivePhotoIdx(i)}
