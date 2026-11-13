@@ -130,8 +130,8 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
               }
               setUploadStatusMsg(
                 isAr
-                  ? `تم حفظ الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية عبر ImageKit بنجاح ✓`
-                  : `Saved thumbnail (${res.thumbnailSizeKB} KB) & full ImageKit image ✓`
+                  ? `تم ضغط ورفع المصغرة (${res.thumbnailSizeKB} KB) والصورة (${res.fullImageSizeKB} KB) بنجاح ✓`
+                  : `Saved thumbnail (${res.thumbnailSizeKB} KB) & ImageKit (${res.fullImageSizeKB} KB) ✓`
               );
             } catch (err: any) {
               reportError(err?.message || (isAr ? 'فشل رفع الصورة، يرجى المحاولة مجدداً' : 'Image upload failed'));
@@ -168,8 +168,8 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         }
         setUploadStatusMsg(
           isAr
-            ? `تم رفع الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية عبر ImageKit بنجاح ✓`
-            : `Uploaded thumbnail (${res.thumbnailSizeKB} KB) & full-res ImageKit image ✓`
+            ? `تم ضغط ورفع المصغرة (${res.thumbnailSizeKB} KB) والصورة (${res.fullImageSizeKB} KB) بنجاح ✓`
+            : `Uploaded thumbnail (${res.thumbnailSizeKB} KB) & ImageKit (${res.fullImageSizeKB} KB) ✓`
         );
       } catch (err: any) {
         reportError(err?.message || (isAr ? 'فشل رفع الصورة، يرجى التحقق من الإعدادات' : 'Image upload failed'));

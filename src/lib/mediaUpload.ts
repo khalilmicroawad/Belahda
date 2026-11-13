@@ -3,6 +3,7 @@ import { supabase, SUPABASE_ANON_KEY, uploadFileToStorage } from './supabase';
 export const THUMBNAILS_BUCKET = 'thumbnails';
 export const IMAGEKIT_AUTH_EDGE_FUNCTION_URL =
   'https://yzseuychjsojkkqbtbjn.supabase.co/functions/v1/super-handler';
+export const MAX_IMAGEKIT_BYTES = 200 * 1024; // 200 KB (204,800 bytes)
 
 const FALLBACK_IMAGEKIT_PUBLIC_KEY =
   (import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY || 'public_HJ3wn0Ex39GhLrpce0EytngSxlA=').trim();
@@ -13,6 +14,7 @@ export interface DualUploadResult {
   thumbnailUrl: string;
   fullImageUrl: string;
   thumbnailSizeKB: number;
+  fullImageSizeKB: number;
   usedImageKit: boolean;
 }
 
@@ -115,13 +117,123 @@ export async function uploadThumbnailToSupabase(thumbnailBlob: Blob): Promise<st
 }
 
 /**
- * Fetches ImageKit upload signature ({ token, expire, signature }) directly from the Supabase Edge Function
- * and uploads the untouched full-resolution original file directly to ImageKit.io.
+ * Compresses and resizes an image in the browser via HTML5 <canvas> before ImageKit upload:
+ * - Starts at max 1280px and JPEG 0.85 quality
+ * - Iteratively lowers quality (0.85 -> 0.7 -> 0.55 -> 0.4 -> 0.3) and scales dimensions if needed
+ * - Guarantees final Blob is strictly under 200 KB (204,800 bytes) and converts back to a `.jpg` File
+ */
+export async function compressImageForImageKit(
+  file: File | Blob,
+  fileName?: string,
+  maxBytes = MAX_IMAGEKIT_BYTES
+): Promise<File> {
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = (err) => reject(err);
+      image.src = objectUrl;
+    });
+
+    const natW = img.naturalWidth || img.width || 1280;
+    const natH = img.naturalHeight || img.height || 960;
+
+    // Initial dimensions capped at 1280px on longest side
+    let maxDim = 1280;
+    let width = natW;
+    let height = natH;
+    if (width > maxDim || height > maxDim) {
+      if (width >= height) {
+        height = Math.max(1, Math.round((height * maxDim) / width));
+        width = maxDim;
+      } else {
+        width = Math.max(1, Math.round((width * maxDim) / height));
+        height = maxDim;
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas 2D context unavailable');
+
+    const renderAndExport = (w: number, h: number, quality: number) =>
+      new Promise<Blob | null>((resolve) => {
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+        }
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      });
+
+    const drawDimensions = (w: number, h: number) => {
+      canvas.width = w;
+      canvas.height = h;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+    };
+
+    const qualitySteps = [0.85, 0.7, 0.55, 0.4, 0.3];
+    let finalBlob: Blob | null = null;
+
+    // Iteratively compress & downscale dimensions until strictly under 200 KB (204,800 bytes)
+    for (let scalePass = 0; scalePass < 6; scalePass++) {
+      drawDimensions(width, height);
+      const passQualities = scalePass === 0 ? qualitySteps : [0.7, 0.55, 0.4, 0.3];
+
+      for (const quality of passQualities) {
+        const candidate = await renderAndExport(width, height, quality);
+        if (candidate) {
+          finalBlob = candidate;
+          if (candidate.size < maxBytes) {
+            break;
+          }
+        }
+      }
+
+      if (finalBlob && finalBlob.size < maxBytes) {
+        break;
+      }
+
+      // Scale down dimensions by 25% for next pass
+      width = Math.max(160, Math.round(width * 0.75));
+      height = Math.max(160, Math.round(height * 0.75));
+    }
+
+    if (!finalBlob) {
+      throw new Error('Failed to compress image via HTML5 Canvas.');
+    }
+    if (finalBlob.size >= maxBytes) {
+      throw new Error(`Compressed image (${Math.round(finalBlob.size / 1024)} KB) still exceeds 200 KB limit.`);
+    }
+
+    const rawName = fileName || (file instanceof File ? file.name : `product-${Date.now()}`);
+    const baseName = rawName.replace(/\.[^/.]+$/, '') || `product-${Date.now()}`;
+    return new File([finalBlob], `${baseName}.jpg`, {
+      type: 'image/jpeg',
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+/**
+ * Compresses every image in the browser to < 200 KB (.jpg File),
+ * fetches ImageKit upload signature ({ token, expire, signature }) from the Supabase Edge Function,
+ * and uploads the compressed file directly to ImageKit.io.
  */
 export async function uploadFullImageToImageKit(
   originalFile: File | Blob,
   fileName?: string
-): Promise<{ url: string; usedImageKit: boolean }> {
+): Promise<{ url: string; usedImageKit: boolean; compressedSizeKB: number }> {
+  const compressedFile = await compressImageForImageKit(originalFile, fileName);
+  const compressedSizeKB = Math.round((compressedFile.size / 1024) * 10) / 10;
+
   const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
   const bearerToken = sessionData?.session?.access_token || SUPABASE_ANON_KEY;
 
@@ -190,12 +302,8 @@ export async function uploadFullImageToImageKit(
   }
 
   const formData = new FormData();
-  const safeName =
-    fileName ||
-    (originalFile instanceof File ? originalFile.name : `product-${Date.now()}.jpg`);
-
-  formData.append('file', originalFile);
-  formData.append('fileName', safeName);
+  formData.append('file', compressedFile);
+  formData.append('fileName', compressedFile.name);
   formData.append('publicKey', publicKey);
   formData.append('signature', String(authData.signature));
   formData.append('expire', String(authData.expire));
@@ -231,13 +339,13 @@ export async function uploadFullImageToImageKit(
     throw new Error('ImageKit Upload did not return a valid public image URL.');
   }
 
-  return { url: finalUrl, usedImageKit: true };
+  return { url: finalUrl, usedImageKit: true, compressedSizeKB };
 }
 
 /**
  * Complete dual-upload workflow:
- * 1. Generates <= 300px (<30KB) thumbnail in browser.
- * 2. Uploads thumbnail to Supabase Storage & original full-res image to ImageKit.io in parallel via Promise.all.
+ * 1. Generates <= 300px (<30KB) thumbnail in browser for Supabase Storage.
+ * 2. Compresses ImageKit image to <= 1280px (<200KB .jpg File) in browser and uploads both in parallel.
  */
 export async function performDualProductImageUpload(
   originalFile: File | Blob
@@ -256,6 +364,7 @@ export async function performDualProductImageUpload(
     thumbnailUrl,
     fullImageUrl: fullUpload.url,
     thumbnailSizeKB,
+    fullImageSizeKB: fullUpload.compressedSizeKB,
     usedImageKit: fullUpload.usedImageKit,
   };
 }
