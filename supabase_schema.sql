@@ -88,6 +88,33 @@ create table if not exists public.posts (
   created_at timestamptz not null default now()
 );
 
+-- Ensure all columns exist if public.posts was created earlier with fewer columns
+alter table public.posts add column if not exists user_id uuid references auth.users(id) on delete set null;
+alter table public.posts add column if not exists description text not null default '';
+alter table public.posts add column if not exists price numeric not null default 0;
+alter table public.posts add column if not exists currency text not null default 'د.ع';
+alter table public.posts add column if not exists hide_price boolean not null default false;
+alter table public.posts add column if not exists category text not null default 'electronics';
+alter table public.posts add column if not exists condition text not null default 'new';
+alter table public.posts add column if not exists seller_type text not null default 'personal';
+alter table public.posts add column if not exists store_id text;
+alter table public.posts add column if not exists store_name text;
+alter table public.posts add column if not exists store_location jsonb;
+alter table public.posts add column if not exists city text not null default 'الموصل';
+alter table public.posts add column if not exists district text not null default 'حي الزهور';
+alter table public.posts add column if not exists delivery_available boolean not null default true;
+alter table public.posts add column if not exists delivery_notes text;
+alter table public.posts add column if not exists media_urls jsonb not null default '[]'::jsonb;
+alter table public.posts add column if not exists thumbnail_url text;
+alter table public.posts add column if not exists full_image_url text;
+alter table public.posts add column if not exists contact_options jsonb not null default '{}'::jsonb;
+alter table public.posts add column if not exists seller_name text not null default '';
+alter table public.posts add column if not exists seller_phone text not null default '';
+alter table public.posts add column if not exists seller_avatar text;
+alter table public.posts add column if not exists is_verified boolean not null default false;
+alter table public.posts add column if not exists views_count integer not null default 1;
+alter table public.posts add column if not exists created_at timestamptz not null default now();
+
 -- 2C. Verified Stores Directory
 create table if not exists public.stores (
   id text primary key,
@@ -318,3 +345,6 @@ drop policy if exists "Anyone can upload thumbnails" on storage.objects;
 create policy "Anyone can upload thumbnails"
   on storage.objects for insert
   with check (bucket_id = 'thumbnails');
+
+-- Refresh PostgREST schema cache immediately
+notify pgrst, 'reload schema';

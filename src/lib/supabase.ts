@@ -435,13 +435,96 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
     created_at: createdIso,
   };
 
-  const cleanPayload = sanitizeUndefinedToNull(rawPayload);
+  let attemptPayload: Record<string, any> = sanitizeUndefinedToNull(rawPayload);
+  let data: any = null;
+  let error: any = null;
+  let triedImageUrlFallback = false;
 
-  const { data, error } = await supabase
-    .from('posts')
-    .insert([cleanPayload])
-    .select()
-    .single();
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const res = await supabase
+      .from('posts')
+      .insert([attemptPayload])
+      .select()
+      .single();
+
+    data = res.data;
+    error = res.error;
+
+    if (!error && data) {
+      break;
+    }
+
+    // Handle schema cache mismatch (column does not exist in user's existing posts table)
+    if (error?.code === 'PGRST204' && typeof error?.message === 'string') {
+      const match = error.message.match(/Could not find the '([^']+)' column/i);
+      const missingCol = match?.[1];
+      if (missingCol && missingCol in attemptPayload) {
+        delete attemptPayload[missingCol];
+        if (missingCol === 'full_image_url' && !triedImageUrlFallback && fullImageUrl) {
+          attemptPayload.image_url = fullImageUrl;
+          triedImageUrlFallback = true;
+        }
+        continue;
+      }
+    }
+
+    // Handle type mismatch (e.g. existing posts.id is bigint/serial or uuid instead of text)
+    if (error?.code === '22P02' && typeof error?.message === 'string') {
+      const lowerMsg = error.message.toLowerCase();
+      const badValueMatch = error.message.match(/:\s*"([^"]+)"/);
+      const badValue = badValueMatch?.[1];
+
+      if (lowerMsg.includes('uuid')) {
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (attemptPayload.id && !uuidRegex.test(String(attemptPayload.id))) {
+          attemptPayload.id =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+              ? crypto.randomUUID()
+              : undefined;
+          if (!attemptPayload.id) delete attemptPayload.id;
+          continue;
+        }
+      }
+
+      if (
+        lowerMsg.includes('bigint') ||
+        lowerMsg.includes('integer') ||
+        lowerMsg.includes('int8') ||
+        lowerMsg.includes('int4')
+      ) {
+        if ('id' in attemptPayload && (!badValue || String(attemptPayload.id) === badValue)) {
+          delete attemptPayload.id;
+          continue;
+        }
+        if (badValue) {
+          const matchingKey = Object.keys(attemptPayload).find(
+            (k) => String(attemptPayload[k]) === badValue
+          );
+          if (matchingKey) {
+            delete attemptPayload[matchingKey];
+            continue;
+          }
+        }
+      }
+    }
+
+    // Handle pre-existing NOT NULL constraints (e.g. id without default or image_url)
+    if (error?.code === '23502' && typeof error?.message === 'string') {
+      const notNullMatch = error.message.match(/null value in column "([^"]+)"/i);
+      const col = notNullMatch?.[1];
+      if (col === 'id' && !('id' in attemptPayload)) {
+        attemptPayload.id = Date.now() * 100 + Math.floor(Math.random() * 100);
+        continue;
+      }
+      if (col === 'image_url' && !triedImageUrlFallback && fullImageUrl) {
+        attemptPayload.image_url = fullImageUrl;
+        triedImageUrlFallback = true;
+        continue;
+      }
+    }
+
+    break;
+  }
 
   if (error || !data) {
     console.error('Supabase posts.insert error:', error);
