@@ -108,7 +108,7 @@ export async function uploadThumbnailToSupabase(thumbnailBlob: Blob): Promise<st
 }
 
 /**
- * Uploads the untouched full-resolution original file directly to ImageKit.io using /api/imagekit/auth signature.
+ * Uploads the untouched full-resolution original file directly to ImageKit.io using /api/imagekit-auth signature.
  * Verifies a valid ImageKit URL is returned; throws exact cause error on auth or upload failure.
  */
 export async function uploadFullImageToImageKit(
@@ -117,16 +117,50 @@ export async function uploadFullImageToImageKit(
 ): Promise<{ url: string; usedImageKit: boolean }> {
   let authRes: Response;
   try {
-    authRes = await fetch('/api/imagekit/auth');
+    authRes = await fetch('/api/imagekit-auth', {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+    });
   } catch (networkErr: any) {
-    throw new Error(`ImageKit Auth Network Error: ${networkErr?.message || 'Unable to reach /api/imagekit/auth'}`);
+    throw new Error(`ImageKit Auth Network Error: ${networkErr?.message || 'Unable to reach /api/imagekit-auth'}`);
   }
 
-  const authData = await authRes.json().catch(() => ({}));
-  if (!authRes.ok || !authData?.configured || !authData?.token || !authData?.signature || !authData?.publicKey) {
+  const contentType = (authRes.headers.get('content-type') || '').toLowerCase();
+  const rawBody = await authRes.text();
+
+  let authData: any = {};
+  try {
+    authData = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    const looksLikeHtml = contentType.includes('text/html') || rawBody.trim().startsWith('<');
+    if (looksLikeHtml) {
+      throw new Error(
+        `ImageKit Auth Endpoint (/api/imagekit-auth) returned HTML instead of JSON (HTTP ${authRes.status}). Make sure the backend Express server is running and updated.`
+      );
+    }
+    throw new Error(
+      `ImageKit Auth Endpoint returned invalid JSON (HTTP ${authRes.status}): ${rawBody.slice(0, 120)}`
+    );
+  }
+
+  if (
+    !authRes.ok ||
+    !authData?.token ||
+    !authData?.expire ||
+    !authData?.signature ||
+    !authData?.publicKey ||
+    !authData?.urlEndpoint
+  ) {
+    const missingList = Array.isArray(authData?.missing) && authData.missing.length > 0
+      ? `Missing Secrets on server: ${authData.missing.join(', ')}`
+      : '';
     throw new Error(
       authData?.error ||
-        `ImageKit Auth Failed (HTTP ${authRes.status}): Ensure IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT are set in Secrets.`
+        missingList ||
+        `ImageKit Auth Failed (HTTP ${authRes.status}): Server did not return { token, expire, signature, publicKey, urlEndpoint }.`
     );
   }
 
@@ -137,10 +171,10 @@ export async function uploadFullImageToImageKit(
 
   formData.append('file', originalFile);
   formData.append('fileName', safeName);
-  formData.append('publicKey', authData.publicKey);
-  formData.append('signature', authData.signature);
+  formData.append('publicKey', String(authData.publicKey));
+  formData.append('signature', String(authData.signature));
   formData.append('expire', String(authData.expire));
-  formData.append('token', authData.token);
+  formData.append('token', String(authData.token));
   formData.append('useUniqueFileName', 'true');
   formData.append('folder', '/souq-listings');
 
@@ -161,7 +195,15 @@ export async function uploadFullImageToImageKit(
     );
   }
 
-  return { url: uploadJson.url, usedImageKit: true };
+  // Ensure URL aligns with configured urlEndpoint when ImageKit returns filePath
+  let finalUrl = String(uploadJson.url);
+  if (!finalUrl && uploadJson?.filePath) {
+    const baseEndpoint = String(authData.urlEndpoint).replace(/\/+$/, '');
+    const relPath = String(uploadJson.filePath).replace(/^\/+/, '');
+    finalUrl = `${baseEndpoint}/${relPath}`;
+  }
+
+  return { url: finalUrl, usedImageKit: true };
 }
 
 /**

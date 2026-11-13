@@ -1,6 +1,7 @@
+import 'dotenv/config';
 import express from 'express';
 import path from 'path';
-import crypto from 'crypto';
+import ImageKit from 'imagekit';
 import { fileURLToPath } from 'url';
 import { db } from './src/db/index.ts';
 import { listings, stores, visitors, users } from './src/db/schema.ts';
@@ -16,9 +17,12 @@ async function startServer() {
   app.use(express.json());
 
   // 0. ImageKit Authentication Endpoint for secure client-side uploads
-  app.get('/api/imagekit/auth', (req, res) => {
-    const privateKey = (process.env.IMAGEKIT_PRIVATE_KEY || '').trim();
+  const handleImageKitAuth = (_req: express.Request, res: express.Response) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
     const publicKey = (process.env.IMAGEKIT_PUBLIC_KEY || process.env.VITE_IMAGEKIT_PUBLIC_KEY || '').trim();
+    const privateKey = (process.env.IMAGEKIT_PRIVATE_KEY || '').trim();
     const urlEndpoint = (process.env.IMAGEKIT_URL_ENDPOINT || process.env.VITE_IMAGEKIT_URL_ENDPOINT || '').trim();
 
     const missing: string[] = [];
@@ -27,29 +31,40 @@ async function startServer() {
     if (!urlEndpoint) missing.push('IMAGEKIT_URL_ENDPOINT');
 
     if (missing.length > 0) {
-      return res.status(503).json({
+      return res.status(500).json({
         configured: false,
         missing,
-        error: `Missing ImageKit environment variable(s): ${missing.join(', ')}`,
+        error: `Missing ImageKit environment variable(s) on server: ${missing.join(', ')}`,
       });
     }
 
-    const token = crypto.randomUUID();
-    const expire = Math.floor(Date.now() / 1000) + 2400; // 40 minutes
-    const signature = crypto
-      .createHmac('sha1', privateKey)
-      .update(token + expire)
-      .digest('hex');
+    try {
+      const imagekit = new ImageKit({
+        publicKey,
+        privateKey,
+        urlEndpoint,
+      });
 
-    res.json({
-      configured: true,
-      token,
-      expire,
-      signature,
-      publicKey,
-      urlEndpoint,
-    });
-  });
+      const authParams = imagekit.getAuthenticationParameters();
+      return res.status(200).json({
+        configured: true,
+        token: authParams.token,
+        expire: authParams.expire,
+        signature: authParams.signature,
+        publicKey,
+        urlEndpoint,
+      });
+    } catch (err: any) {
+      console.error('ImageKit SDK auth error:', err);
+      return res.status(500).json({
+        configured: false,
+        error: `ImageKit initialization failed: ${err?.message || 'Unknown error'}`,
+      });
+    }
+  };
+
+  app.get('/api/imagekit-auth', handleImageKitAuth);
+  app.get('/api/imagekit/auth', handleImageKitAuth);
 
   // 1. Visitor Counter & Logs API (عداد وسجل الزوار)
   app.get('/api/visitors', async (req, res) => {
@@ -216,6 +231,11 @@ async function startServer() {
       console.error('Error saving store:', err);
       res.status(500).json({ error: 'Failed to save store' });
     }
+  });
+
+  // Ensure unmatched /api/* routes always return JSON (never Vite/SPA HTML)
+  app.use('/api', (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
   });
 
   // 4. Vite Middlewares in Dev / Static files in Prod
