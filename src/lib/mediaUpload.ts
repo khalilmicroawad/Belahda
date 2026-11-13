@@ -1,6 +1,13 @@
-import { supabase, SUPABASE_BUCKET, uploadFileToStorage } from './supabase';
+import { supabase, SUPABASE_ANON_KEY, uploadFileToStorage } from './supabase';
 
 export const THUMBNAILS_BUCKET = 'thumbnails';
+export const IMAGEKIT_AUTH_EDGE_FUNCTION_URL =
+  'https://yzseuychjsojkkqbtbjn.supabase.co/functions/v1/super-handler';
+
+const FALLBACK_IMAGEKIT_PUBLIC_KEY =
+  (import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY || 'public_HJ3wn0Ex39GhLrpce0EytngSxlA=').trim();
+const FALLBACK_IMAGEKIT_URL_ENDPOINT =
+  (import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT || 'https://ik.imagekit.io/Belahda').trim();
 
 export interface DualUploadResult {
   thumbnailUrl: string;
@@ -108,24 +115,44 @@ export async function uploadThumbnailToSupabase(thumbnailBlob: Blob): Promise<st
 }
 
 /**
- * Uploads the untouched full-resolution original file directly to ImageKit.io using /api/imagekit-auth signature.
- * Verifies a valid ImageKit URL is returned; throws exact cause error on auth or upload failure.
+ * Fetches ImageKit upload signature ({ token, expire, signature }) directly from the Supabase Edge Function
+ * and uploads the untouched full-resolution original file directly to ImageKit.io.
  */
 export async function uploadFullImageToImageKit(
   originalFile: File | Blob,
   fileName?: string
 ): Promise<{ url: string; usedImageKit: boolean }> {
+  const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+  const bearerToken = sessionData?.session?.access_token || SUPABASE_ANON_KEY;
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${bearerToken}`,
+  };
+
   let authRes: Response;
   try {
-    authRes = await fetch('/api/imagekit-auth', {
+    authRes = await fetch(IMAGEKIT_AUTH_EDGE_FUNCTION_URL, {
       method: 'GET',
       cache: 'no-store',
-      headers: {
-        Accept: 'application/json',
-      },
+      headers,
     });
+    if (authRes.status === 405) {
+      authRes = await fetch(IMAGEKIT_AUTH_EDGE_FUNCTION_URL, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          ...headers,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+    }
   } catch (networkErr: any) {
-    throw new Error(`ImageKit Auth Network Error: ${networkErr?.message || 'Unable to reach /api/imagekit-auth'}`);
+    throw new Error(
+      `ImageKit Auth Network Error: ${networkErr?.message || 'Unable to reach Supabase Edge Function super-handler'}`
+    );
   }
 
   const contentType = (authRes.headers.get('content-type') || '').toLowerCase();
@@ -138,30 +165,28 @@ export async function uploadFullImageToImageKit(
     const looksLikeHtml = contentType.includes('text/html') || rawBody.trim().startsWith('<');
     if (looksLikeHtml) {
       throw new Error(
-        `ImageKit Auth Endpoint (/api/imagekit-auth) returned HTML instead of JSON (HTTP ${authRes.status}). Make sure the backend Express server is running and updated.`
+        `Supabase Edge Function (${IMAGEKIT_AUTH_EDGE_FUNCTION_URL}) returned HTML instead of JSON (HTTP ${authRes.status}).`
       );
     }
     throw new Error(
-      `ImageKit Auth Endpoint returned invalid JSON (HTTP ${authRes.status}): ${rawBody.slice(0, 120)}`
+      `ImageKit Auth Edge Function returned invalid JSON (HTTP ${authRes.status}): ${rawBody.slice(0, 120)}`
     );
   }
 
-  if (
-    !authRes.ok ||
-    !authData?.token ||
-    !authData?.expire ||
-    !authData?.signature ||
-    !authData?.publicKey ||
-    !authData?.urlEndpoint
-  ) {
-    const missingList = Array.isArray(authData?.missing) && authData.missing.length > 0
-      ? `Missing Secrets on server: ${authData.missing.join(', ')}`
-      : '';
+  if (!authRes.ok || !authData?.token || !authData?.expire || !authData?.signature) {
+    const serverMsg = authData?.error || authData?.message;
     throw new Error(
-      authData?.error ||
-        missingList ||
-        `ImageKit Auth Failed (HTTP ${authRes.status}): Server did not return { token, expire, signature, publicKey, urlEndpoint }.`
+      serverMsg
+        ? `ImageKit Auth Error (HTTP ${authRes.status}): ${serverMsg}`
+        : `ImageKit Auth Failed (HTTP ${authRes.status}): Edge Function did not return { token, expire, signature }.`
     );
+  }
+
+  const publicKey = String(authData.publicKey || FALLBACK_IMAGEKIT_PUBLIC_KEY || '').trim();
+  const urlEndpoint = String(authData.urlEndpoint || FALLBACK_IMAGEKIT_URL_ENDPOINT || '').trim();
+
+  if (!publicKey) {
+    throw new Error('ImageKit publicKey is missing (neither returned by Edge Function nor set in VITE_IMAGEKIT_PUBLIC_KEY).');
   }
 
   const formData = new FormData();
@@ -171,7 +196,7 @@ export async function uploadFullImageToImageKit(
 
   formData.append('file', originalFile);
   formData.append('fileName', safeName);
-  formData.append('publicKey', String(authData.publicKey));
+  formData.append('publicKey', publicKey);
   formData.append('signature', String(authData.signature));
   formData.append('expire', String(authData.expire));
   formData.append('token', String(authData.token));
@@ -189,18 +214,21 @@ export async function uploadFullImageToImageKit(
   }
 
   const uploadJson = await uploadRes.json().catch(() => ({}));
-  if (!uploadRes.ok || !uploadJson?.url || !String(uploadJson.url).startsWith('http')) {
+  if (!uploadRes.ok || (!uploadJson?.url && !uploadJson?.filePath)) {
     throw new Error(
       `ImageKit Upload Failed (HTTP ${uploadRes.status}): ${uploadJson?.message || uploadJson?.help || 'Invalid response from ImageKit'}`
     );
   }
 
-  // Ensure URL aligns with configured urlEndpoint when ImageKit returns filePath
-  let finalUrl = String(uploadJson.url);
-  if (!finalUrl && uploadJson?.filePath) {
-    const baseEndpoint = String(authData.urlEndpoint).replace(/\/+$/, '');
+  let finalUrl = uploadJson?.url ? String(uploadJson.url) : '';
+  if (!finalUrl && uploadJson?.filePath && urlEndpoint) {
+    const baseEndpoint = urlEndpoint.replace(/\/+$/, '');
     const relPath = String(uploadJson.filePath).replace(/^\/+/, '');
     finalUrl = `${baseEndpoint}/${relPath}`;
+  }
+
+  if (!finalUrl.startsWith('http')) {
+    throw new Error('ImageKit Upload did not return a valid public image URL.');
   }
 
   return { url: finalUrl, usedImageKit: true };
