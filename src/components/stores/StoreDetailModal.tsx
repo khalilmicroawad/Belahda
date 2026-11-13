@@ -336,14 +336,18 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
                   }}
                   className="rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-2xs hover:shadow-md cursor-pointer transition-all flex flex-col justify-between group"
                 >
-                  <div className="relative aspect-16/10 bg-slate-100 overflow-hidden">
-                    <img
-                      src={item.thumbnailUrl || item.mediaUrls[0]}
-                      alt={item.title}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
-                    />
+                  <div className="relative aspect-16/10 bg-slate-100 overflow-hidden flex items-center justify-center">
+                    {(item.thumbnailUrl || (item.mediaUrls && item.mediaUrls[0])) ? (
+                      <img
+                        src={item.thumbnailUrl || item.mediaUrls[0]}
+                        alt={item.title || 'منتج'}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                      />
+                    ) : (
+                      <Package className="w-6 h-6 text-slate-300" />
+                    )}
                     <div className="absolute top-1.5 right-1.5 bg-slate-900/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
                       {item.condition === 'new' ? 'جديد' : 'مستعمل'}
                     </div>

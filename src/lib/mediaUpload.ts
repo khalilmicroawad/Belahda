@@ -74,13 +74,12 @@ export async function generateClientThumbnail(
 }
 
 /**
- * Uploads the lightweight thumbnail to Supabase Storage (`thumbnails` bucket, with `app-uploads` fallback).
+ * Uploads the lightweight thumbnail to Supabase Storage (`thumbnails` bucket) and verifies public URL.
  */
 export async function uploadThumbnailToSupabase(thumbnailBlob: Blob): Promise<string> {
   const ext = thumbnailBlob.type === 'image/webp' ? 'webp' : 'jpg';
   const filePath = `thumb-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
-  // 1. Try dedicated `thumbnails` bucket
   const { error: thumbErr } = await supabase.storage
     .from(THUMBNAILS_BUCKET)
     .upload(filePath, thumbnailBlob, {
@@ -89,71 +88,80 @@ export async function uploadThumbnailToSupabase(thumbnailBlob: Blob): Promise<st
       contentType: thumbnailBlob.type || 'image/webp',
     });
 
-  if (!thumbErr) {
-    const { data } = supabase.storage.from(THUMBNAILS_BUCKET).getPublicUrl(filePath);
-    return data.publicUrl;
+  if (thumbErr) {
+    // Only fall back to app-uploads if the thumbnails bucket itself doesn't exist
+    const msg = thumbErr.message || '';
+    if (msg.toLowerCase().includes('bucket') && msg.toLowerCase().includes('not found')) {
+      const fallbackUrl = await uploadFileToStorage(thumbnailBlob, 'listings', `thumbnails/${filePath}`);
+      if (fallbackUrl && fallbackUrl.startsWith('http')) {
+        return fallbackUrl;
+      }
+    }
+    throw new Error(`Supabase Thumbnail Upload Failed: ${thumbErr.message}`);
   }
 
-  // 2. Fallback to `app-uploads/thumbnails` if `thumbnails` bucket wasn't created yet
-  try {
-    return await uploadFileToStorage(thumbnailBlob, 'listings', `thumbnails/${filePath}`);
-  } catch {
-    // 3. Final fallback to inline data URL so preview never breaks
-    return await blobToDataUrl(thumbnailBlob);
+  const { data } = supabase.storage.from(THUMBNAILS_BUCKET).getPublicUrl(filePath);
+  if (!data?.publicUrl || !data.publicUrl.startsWith('http')) {
+    throw new Error('Supabase Storage failed to return a valid public thumbnail URL.');
   }
+  return data.publicUrl;
 }
 
 /**
  * Uploads the untouched full-resolution original file directly to ImageKit.io using /api/imagekit/auth signature.
+ * Verifies a valid ImageKit URL is returned; throws exact cause error on auth or upload failure.
  */
 export async function uploadFullImageToImageKit(
   originalFile: File | Blob,
   fileName?: string
 ): Promise<{ url: string; usedImageKit: boolean }> {
+  let authRes: Response;
   try {
-    const authRes = await fetch('/api/imagekit/auth');
-    if (authRes.ok) {
-      const authData = await authRes.json();
-      if (authData.configured && authData.token && authData.signature && authData.publicKey) {
-        const formData = new FormData();
-        const safeName =
-          fileName ||
-          (originalFile instanceof File ? originalFile.name : `product-${Date.now()}.jpg`);
-
-        formData.append('file', originalFile);
-        formData.append('fileName', safeName);
-        formData.append('publicKey', authData.publicKey);
-        formData.append('signature', authData.signature);
-        formData.append('expire', String(authData.expire));
-        formData.append('token', authData.token);
-        formData.append('useUniqueFileName', 'true');
-        formData.append('folder', '/souq-listings');
-
-        const uploadRes = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (uploadRes.ok) {
-          const uploadJson = await uploadRes.json();
-          if (uploadJson?.url) {
-            return { url: uploadJson.url, usedImageKit: true };
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('ImageKit upload skipped or failed, using Supabase Storage fallback:', err);
+    authRes = await fetch('/api/imagekit/auth');
+  } catch (networkErr: any) {
+    throw new Error(`ImageKit Auth Network Error: ${networkErr?.message || 'Unable to reach /api/imagekit/auth'}`);
   }
 
-  // Fallback to Supabase `app-uploads` bucket if ImageKit keys are not yet set in Secrets
-  try {
-    const fallbackUrl = await uploadFileToStorage(originalFile, 'listings');
-    return { url: fallbackUrl, usedImageKit: false };
-  } catch {
-    const dataUrl = await blobToDataUrl(originalFile);
-    return { url: dataUrl, usedImageKit: false };
+  const authData = await authRes.json().catch(() => ({}));
+  if (!authRes.ok || !authData?.configured || !authData?.token || !authData?.signature || !authData?.publicKey) {
+    throw new Error(
+      authData?.error ||
+        `ImageKit Auth Failed (HTTP ${authRes.status}): Ensure IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT are set in Secrets.`
+    );
   }
+
+  const formData = new FormData();
+  const safeName =
+    fileName ||
+    (originalFile instanceof File ? originalFile.name : `product-${Date.now()}.jpg`);
+
+  formData.append('file', originalFile);
+  formData.append('fileName', safeName);
+  formData.append('publicKey', authData.publicKey);
+  formData.append('signature', authData.signature);
+  formData.append('expire', String(authData.expire));
+  formData.append('token', authData.token);
+  formData.append('useUniqueFileName', 'true');
+  formData.append('folder', '/souq-listings');
+
+  let uploadRes: Response;
+  try {
+    uploadRes = await fetch('https://upload.imagekit.io/api/v1/files/upload', {
+      method: 'POST',
+      body: formData,
+    });
+  } catch (netErr: any) {
+    throw new Error(`ImageKit Upload Network Error: ${netErr?.message || 'Connection failed'}`);
+  }
+
+  const uploadJson = await uploadRes.json().catch(() => ({}));
+  if (!uploadRes.ok || !uploadJson?.url || !String(uploadJson.url).startsWith('http')) {
+    throw new Error(
+      `ImageKit Upload Failed (HTTP ${uploadRes.status}): ${uploadJson?.message || uploadJson?.help || 'Invalid response from ImageKit'}`
+    );
+  }
+
+  return { url: uploadJson.url, usedImageKit: true };
 }
 
 /**
@@ -180,16 +188,4 @@ export async function performDualProductImageUpload(
     thumbnailSizeKB,
     usedImageKit: fullUpload.usedImageKit,
   };
-}
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      if (typeof ev.target?.result === 'string') resolve(ev.target.result);
-      else reject(new Error('Failed to convert blob to DataURL'));
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }

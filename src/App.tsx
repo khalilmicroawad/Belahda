@@ -16,26 +16,27 @@ import {
   MapPin,
   Store,
   Sparkles,
-  Users
+  Users,
+  AlertTriangle
 } from 'lucide-react';
 import { Listing, AppView, UserAccount, StoreProfile, CategoryId } from './types';
 import {
-  getStoredListings,
-  saveListings,
   getStoredUser,
   saveUserAccount,
   clearUserAccount,
-  fetchDatabaseListings,
   deleteListingFromDb
 } from './data/mockListings';
-import { getStoredStores, saveStores, addOrUpdateStore, fetchDatabaseStores } from './data/mockStores';
+import { getStoredStores, fetchDatabaseStores } from './data/mockStores';
 import {
   supabase,
+  getSupabaseConfigStatus,
   fetchUserProfile,
   mapAuthUserToAccount,
   upsertUserProfile,
   logSupabaseVisitor,
-  fetchSupabaseVisitors
+  fetchSupabaseVisitors,
+  fetchSupabasePosts,
+  subscribeToSupabasePosts
 } from './lib/supabase';
 import { ZeroBarrierEntry } from './components/onboarding/ZeroBarrierEntry';
 import { ListingWizard } from './components/listing-wizard/ListingWizard';
@@ -58,8 +59,11 @@ export default function App() {
   const [simulatorMode, setSimulatorMode] = useState<'mobile_frame' | 'full_screen'>('mobile_frame');
 
   // Core App Flow State
+  const supabaseConfig = getSupabaseConfigStatus();
   const [currentView, setCurrentView] = useState<AppView>('onboarding');
-  const [listings, setListings] = useState<Listing[]>(getStoredListings());
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [isFeedLoading, setIsFeedLoading] = useState<boolean>(true);
+  const [feedError, setFeedError] = useState<{ message: string; code?: string } | null>(null);
   const [stores, setStores] = useState<StoreProfile[]>(getStoredStores());
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [newlyPublishedId, setNewlyPublishedId] = useState<string | null>(null);
@@ -82,16 +86,42 @@ export default function App() {
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<(() => void) | null>(null);
 
-  // Sync with Supabase + Local Cache on mount
-  useEffect(() => {
-    // 1. Fetch live listings
-    fetchDatabaseListings().then((dbListings) => {
-      if (dbListings && dbListings.length > 0) {
-        setListings(dbListings);
+  const loadPublicPosts = async () => {
+    setIsFeedLoading(true);
+    setFeedError(null);
+    try {
+      const res = await fetchSupabasePosts();
+      if (res.error) {
+        setFeedError({ message: res.error, code: res.errorCode || undefined });
+      } else {
+        setListings(res.posts);
       }
+    } finally {
+      setIsFeedLoading(false);
+    }
+  };
+
+  // Sync with Supabase + Realtime Subscriptions on mount
+  useEffect(() => {
+    // 1. Fetch public posts ordered newest-first (created_at descending)
+    loadPublicPosts();
+
+    // 2. Subscribe to Supabase Realtime changes (INSERT, UPDATE, DELETE) on `posts`
+    const unsubscribePosts = subscribeToSupabasePosts({
+      onInsert: (newPost) => {
+        setListings((prev) => [newPost, ...prev.filter((item) => item.id !== newPost.id)]);
+      },
+      onUpdate: (updatedPost) => {
+        setListings((prev) =>
+          prev.map((item) => (item.id === updatedPost.id ? updatedPost : item))
+        );
+      },
+      onDelete: (deletedId) => {
+        setListings((prev) => prev.filter((item) => item.id !== deletedId));
+      },
     });
 
-    // 2. Fetch live stores
+    // 3. Fetch live stores
     fetchDatabaseStores().then((dbStores) => {
       if (dbStores && dbStores.length > 0) {
         setStores(dbStores);
@@ -175,6 +205,7 @@ export default function App() {
 
     return () => {
       authListener.subscription.unsubscribe();
+      unsubscribePosts();
     };
   }, []);
 
@@ -188,23 +219,28 @@ export default function App() {
     setLang((prev) => (prev === 'ar' ? 'en' : 'ar'));
   };
 
-  // 1. "عن الضغط على شراء. لا يعمل. يجب عرض جميع الإعلانات المضافة"
-  // Ensures switching to BUY clears filters, refreshes from Cloud SQL DB and displays all items
+  // Public "شراء" (Buy): No auth required — fetches all posts from Supabase `posts` ordered newest-first
   const handleSelectBuy = async () => {
     setCurrentView('feed');
     setResetFeedTrigger((prev) => prev + 1);
-
-    // Refresh from Cloud SQL
-    const latest = await fetchDatabaseListings();
-    if (latest && latest.length > 0) {
-      setListings(latest);
-    } else {
-      setListings(getStoredListings());
-    }
+    await loadPublicPosts();
   };
 
-  const handleSelectSell = () => {
-    setCurrentView('create');
+  // Restricted "بيع" (Create Post): Requires logged-in Supabase user
+  const handleSelectSell = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
+      setCurrentView('create');
+      return;
+    }
+
+    setPendingActionAfterAuth(() => () => setCurrentView('create'));
+    setAuthPurposeMessage(
+      isAr
+        ? 'يرجى تسجيل الدخول أو إنشاء حساب لنشر إعلان جديد في السوق'
+        : 'Please sign in or create an account to publish a new post'
+    );
+    setShowAuthModal(true);
   };
 
   const handleSelectStores = () => {
@@ -213,7 +249,7 @@ export default function App() {
     setCurrentView('stores');
   };
 
-  // When seller publishes listing:
+  // When seller publishes listing to Supabase `posts`:
   const handleListingPublished = (newListing: Listing) => {
     setListings((prev) => [newListing, ...prev.filter((item) => item.id !== newListing.id)]);
     setNewlyPublishedId(newListing.id);
@@ -292,7 +328,6 @@ export default function App() {
 
     const updated = [...sampleItems, ...listings];
     setListings(updated);
-    saveListings(updated);
 
     // If user has no account, create one with seller privileges
     if (!currentUser) {
@@ -330,9 +365,7 @@ export default function App() {
   };
 
   const handleDeleteListing = (id: string) => {
-    const updated = listings.filter((item) => item.id !== id);
-    setListings(updated);
-    saveListings(updated);
+    setListings((prev) => prev.filter((item) => item.id !== id));
     deleteListingFromDb(id);
   };
 
@@ -355,7 +388,9 @@ export default function App() {
 
   // Filter listings of current user
   const userPhone = currentUser?.phoneNumber;
-  const userListings = listings.filter((it) => it.sellerPhone === userPhone);
+  const userListings = listings.filter(
+    (it) => (currentUser?.id && it.sellerId === currentUser.id) || (userPhone && it.sellerPhone === userPhone)
+  );
 
   return (
     <div className={`min-h-screen bg-slate-200/90 flex flex-col items-center justify-center font-sans ${isAr ? 'text-right' : 'text-left'}`}>
@@ -468,6 +503,20 @@ export default function App() {
 
           {/* ACTIVE SCREEN DISPLAY */}
           <div className="flex-1 overflow-y-auto relative flex flex-col bg-slate-50">
+            {!supabaseConfig.isValid && (
+              <div className="m-2 p-2.5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-[11px] flex items-start gap-2 shrink-0">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">
+                    {isAr ? 'تنبيه إعدادات Supabase:' : 'Supabase Configuration Warning:'}
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-800" dir="ltr">
+                    {supabaseConfig.message}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* View 1: Zero-Barrier Entrance */}
             {currentView === 'onboarding' && (
               <ZeroBarrierEntry
@@ -488,10 +537,13 @@ export default function App() {
                 currentUser={currentUser}
                 onSelectListing={(item) => setSelectedListing(item)}
                 onOpenChat={(item) => setChatListing(item)}
-                onOpenCreate={() => setCurrentView('create')}
+                onOpenCreate={handleSelectSell}
                 onRequireAuth={handleRequireAuth}
                 newlyPublishedId={newlyPublishedId}
                 resetTrigger={resetFeedTrigger}
+                isLoading={isFeedLoading}
+                feedError={feedError}
+                onRetryFetch={loadPublicPosts}
                 lang={lang}
               />
             )}
@@ -559,7 +611,7 @@ export default function App() {
               {/* Tab 3: Primary SELL Center CTA (بيع) */}
               <button
                 type="button"
-                onClick={() => setCurrentView('create')}
+                onClick={handleSelectSell}
                 className="flex flex-col items-center justify-center -mt-3 group active:scale-95 transition-transform"
               >
                 <div className="w-10 h-10 rounded-full bg-emerald-600 text-white shadow-md shadow-emerald-600/30 flex items-center justify-center border-2 border-white group-hover:bg-emerald-700 transition-colors">
@@ -649,7 +701,7 @@ export default function App() {
           onClose={() => setShowMyListings(false)}
           onOpenCreate={() => {
             setShowMyListings(false);
-            setCurrentView('create');
+            handleSelectSell();
           }}
           onOpenCreateStore={() => {
             setShowMyListings(false);

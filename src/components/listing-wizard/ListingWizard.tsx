@@ -29,7 +29,8 @@ import {
 import { CATEGORIES, CURRENCIES, MOSUL_DISTRICTS } from '../../data/categories';
 import { MediaSelectorStep } from './MediaSelectorStep';
 import { InteractiveMapSelector } from './InteractiveMapSelector';
-import { addListingToTop, saveUserAccount, getStoredUser } from '../../data/mockListings';
+import { saveUserAccount } from '../../data/mockListings';
+import { saveSupabasePost, supabase, upsertUserProfile } from '../../lib/supabase';
 
 interface ListingWizardProps {
   onCancel: () => void;
@@ -52,13 +53,11 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Form State
-  const [mediaUrls, setMediaUrls] = useState<string[]>([
-    '/src/assets/images/listing_iphone_pro_1794306234850.jpg'
-  ]);
+  const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [sellerType, setSellerType] = useState<SellerType>('personal');
-  const [sellerName, setSellerName] = useState<string>(currentUser?.name || 'عمر الموصلي');
-  const [sellerPhone, setSellerPhone] = useState<string>(currentUser?.phoneNumber || '07701234567');
-  const [storeName, setStoreName] = useState<string>('محل الفرات للإلكترونيات');
+  const [sellerName, setSellerName] = useState<string>(currentUser?.name || '');
+  const [sellerPhone, setSellerPhone] = useState<string>(currentUser?.phoneNumber || '');
+  const [storeName, setStoreName] = useState<string>('');
   
   // Location focused on Mosul
   const [district, setDistrict] = useState<string>('حي الزهور');
@@ -76,12 +75,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
 
   const [category, setCategory] = useState<CategoryId>('electronics');
   const [condition, setCondition] = useState<ItemCondition>('new');
-  const [title, setTitle] = useState<string>('آيفون 16 برو 256GB جديد بالكرتون ضمان عراقي');
-  const [description, setDescription] = useState<string>(
-    'جهاز جديد تماماً بتغليف المصنع، لم يستعمل، سيم كارت شغال، ضمان سنة كاملة. متاح التوصيل لجميع مناطق الموصل أو الاستلام المباشر.'
-  );
+  const [title, setTitle] = useState<string>('');
+  const [description, setDescription] = useState<string>('');
 
-  const [price, setPrice] = useState<number>(1350000);
+  const [price, setPrice] = useState<number>(0);
   const [currency, setCurrency] = useState<string>('د.ع');
   const [hidePrice, setHidePrice] = useState<boolean>(false);
 
@@ -89,20 +86,31 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
     directChat: true,
     whatsapp: true,
     phoneCall: true,
-    whatsappNumber: currentUser?.phoneNumber || '07701234567',
-    phoneNumber: currentUser?.phoneNumber || '07701234567'
+    whatsappNumber: currentUser?.phoneNumber || '',
+    phoneNumber: currentUser?.phoneNumber || ''
   });
 
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
   const [isMediaUploading, setIsMediaUploading] = useState<boolean>(false);
   const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>(undefined);
   const [fullImageUrl, setFullImageUrl] = useState<string | undefined>(undefined);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [dbErrorDetail, setDbErrorDetail] = useState<{ code?: string; message: string; hint?: string } | null>(null);
 
   const handleNext = () => {
     setValidationError(null);
+    setDbErrorDetail(null);
 
     if (currentStep === 1) {
+      if (isMediaUploading) {
+        setValidationError(isAr ? 'يرجى الانتظار حتى يكتمل رفع الصورة' : 'Please wait for image upload to finish');
+        return;
+      }
+      if (uploadError && mediaUrls.length === 0) {
+        setValidationError(isAr ? 'فشل رفع الصورة، يرجى إصلاح الخطأ وإرفاق صورة صالحة' : 'Image upload failed, please upload a valid photo');
+        return;
+      }
       if (mediaUrls.length === 0) {
         setValidationError(isAr ? 'يرجى إرفاق صورة واحدة على الأقل' : 'Please attach at least one photo');
         return;
@@ -113,7 +121,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         return;
       }
       if (!sellerPhone.trim() || sellerPhone.length < 10) {
-        setValidationError(isAr ? 'يرجى إدخال رقم هاتف عراقي صحيح للتواصل وإنشاء الحساب' : 'Please enter a valid Iraqi phone');
+        setValidationError(isAr ? 'يرجى إدخال رقم هاتف عراقي صحيح للتواصل' : 'Please enter a valid Iraqi phone');
         return;
       }
       if (sellerType === 'commercial' && !storeName.trim()) {
@@ -142,6 +150,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
 
   const handleBack = () => {
     setValidationError(null);
+    setDbErrorDetail(null);
     if (currentStep > 1) {
       setCurrentStep((prev) => prev - 1);
     } else {
@@ -149,70 +158,108 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
     }
   };
 
-  // Instant Publishing
-  const handlePublish = () => {
+  // Direct Global Publish to Supabase `posts` table
+  const handlePublish = async () => {
+    setValidationError(null);
+    setDbErrorDetail(null);
+
+    if (isMediaUploading) {
+      setValidationError(isAr ? 'جاري رفع الصورة، يرجى الانتظار...' : 'Image upload in progress...');
+      return;
+    }
+
+    if (mediaUrls.length === 0) {
+      setValidationError(isAr ? 'لا توجد صورة صالحة مرفقة للإعلان' : 'No valid image attached');
+      return;
+    }
+
     setIsPublishing(true);
 
-    // Save or update user account automatically on first listing:
-    // "عندما يضيف البائع اول منتج يكون اسمه ورقم هاتفه هو حساب له داخل البرنامج يمكنه تعديله لاحقة من لوحة التحكم"
-    const activeAccount: UserAccount = {
-      id: currentUser?.id || `user-${Date.now()}`,
-      name: sellerName.trim(),
-      phoneNumber: sellerPhone.trim(),
-      email: currentUser?.email,
-      password: currentUser?.password,
-      isSeller: true,
-      createdAt: currentUser?.createdAt || Date.now()
-    };
-    saveUserAccount(activeAccount);
-    if (onUserCreated) onUserCreated(activeAccount);
-
-    const newListing: Listing = {
-      id: `item-${Date.now()}`,
-      title: title.trim(),
-      description: description.trim(),
-      price: hidePrice ? 0 : Number(price),
-      currency,
-      hidePrice,
-      category,
-      condition,
-      sellerType,
-      sellerName: sellerType === 'commercial' ? storeName.trim() : sellerName.trim(),
-      sellerPhone: sellerPhone.trim(),
-      city: 'الموصل',
-      district,
-      deliveryAvailable,
-      deliveryNotes: deliveryAvailable ? deliveryNotes.trim() : undefined,
-      storeName: sellerType === 'commercial' ? storeName.trim() : undefined,
-      storeLocation: storeLocation,
-      mediaUrls,
-      thumbnailUrl: thumbnailUrl || mediaUrls[0],
-      fullImageUrl: fullImageUrl || mediaUrls[0],
-      contactOptions: {
-        ...contactOptions,
-        whatsappNumber: sellerPhone.trim(),
-        phoneNumber: sellerPhone.trim()
-      },
-      createdAt: isAr ? 'الآن · الموصل' : 'Just now · Mosul',
-      createdTimestamp: Date.now(),
-      viewsCount: 1,
-      sellerAvatar:
-        sellerType === 'commercial'
-          ? 'https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&w=150&q=80'
-          : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
-      isVerified: sellerType === 'commercial'
-    };
-
     try {
-      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
-    } catch {}
+      const { data: userRes } = await supabase.auth.getUser();
+      const verifiedUser = userRes?.user || null;
 
-    addListingToTop(newListing);
+      if (verifiedUser) {
+        const activeAccount: UserAccount = {
+          id: verifiedUser.id,
+          name: sellerName.trim() || currentUser?.name || verifiedUser.email?.split('@')[0] || 'مستخدم',
+          phoneNumber: sellerPhone.trim() || currentUser?.phoneNumber || '',
+          email: currentUser?.email || verifiedUser.email,
+          isSeller: true,
+          hasCustomStore: currentUser?.hasCustomStore,
+          customStoreId: currentUser?.customStoreId,
+          createdAt: currentUser?.createdAt || Date.now(),
+        };
+        saveUserAccount(activeAccount);
+        upsertUserProfile(activeAccount).catch(() => {});
+        if (onUserCreated) onUserCreated(activeAccount);
+      }
 
-    setTimeout(() => {
+      const resolvedFullUrl = fullImageUrl || mediaUrls[0];
+      const resolvedThumbUrl = thumbnailUrl || mediaUrls[0];
+
+      const newListing: Listing = {
+        id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        title: title.trim(),
+        description: description.trim(),
+        price: hidePrice ? 0 : Number(price),
+        currency,
+        hidePrice,
+        category,
+        condition,
+        sellerType,
+        sellerId: verifiedUser?.id,
+        sellerName: sellerType === 'commercial' ? storeName.trim() : sellerName.trim(),
+        sellerPhone: sellerPhone.trim(),
+        city: 'الموصل',
+        district,
+        deliveryAvailable,
+        deliveryNotes: deliveryAvailable ? deliveryNotes.trim() : undefined,
+        storeName: sellerType === 'commercial' ? storeName.trim() : undefined,
+        storeLocation,
+        mediaUrls: resolvedFullUrl ? [resolvedFullUrl, ...mediaUrls.filter((u) => u !== resolvedFullUrl)] : mediaUrls,
+        thumbnailUrl: resolvedThumbUrl,
+        fullImageUrl: resolvedFullUrl,
+        contactOptions: {
+          ...contactOptions,
+          whatsappNumber: sellerPhone.trim(),
+          phoneNumber: sellerPhone.trim(),
+        },
+        createdAt: isAr ? 'الآن · الموصل' : 'Just now · Mosul',
+        createdTimestamp: Date.now(),
+        viewsCount: 1,
+        sellerAvatar: currentUser?.avatarUrl || undefined,
+        isVerified: sellerType === 'commercial',
+      };
+
+      const result = await saveSupabasePost(newListing);
+      if (!result.ok || !result.savedListing) {
+        setDbErrorDetail({
+          code: result.errorCode,
+          message:
+            result.error ||
+            (isAr
+              ? 'تعذر حفظ الإعلان في Supabase.'
+              : 'Failed to save post to Supabase.'),
+          hint: result.errorHint || result.errorDetails,
+        });
+        setIsPublishing(false);
+        return;
+      }
+
+      try {
+        confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+      } catch {}
+
       setIsPublishing(false);
-      onPublished(newListing);
-    }, 400);
+      onPublished(result.savedListing);
+    } catch (err: any) {
+      setDbErrorDetail({
+        code: err?.code || 'EXCEPTION',
+        message: err?.message || (isAr ? 'حدث خطأ أثناء النشر، حاول مجدداً.' : 'Error publishing post.'),
+      });
+      setIsPublishing(false);
+    }
   };
 
   const stepsMeta = [
@@ -289,6 +336,22 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           </div>
         )}
 
+        {dbErrorDetail && (
+          <div className="p-3 rounded-2xl bg-red-50 border-2 border-red-300 text-red-900 text-[11px] space-y-1 animate-shake">
+            <div className="flex items-center gap-1.5 font-bold text-red-800">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>
+                {isAr ? 'تعذر حفظ الإعلان في قاعدة البيانات (Supabase Error)' : 'Supabase Insert Error'}
+              </span>
+            </div>
+            <div className="text-[10px] font-mono bg-white/80 p-2 rounded-lg border border-red-200 text-red-800 break-words select-text" dir="ltr">
+              {dbErrorDetail.code && <div className="font-bold">Code: {dbErrorDetail.code}</div>}
+              <div>Message: {dbErrorDetail.message}</div>
+              {dbErrorDetail.hint && <div className="text-red-600">Hint: {dbErrorDetail.hint}</div>}
+            </div>
+          </div>
+        )}
+
         {/* STEP 1: MEDIA SELECTION */}
         {currentStep === 1 && (
           <MediaSelectorStep
@@ -305,7 +368,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             onDualMediaUploaded={(thumb, full) => {
               setThumbnailUrl((prev) => prev || thumb);
               setFullImageUrl((prev) => prev || full);
+              setUploadError(null);
             }}
+            onUploadError={(errMsg) => setUploadError(errMsg)}
             lang={lang}
           />
         )}

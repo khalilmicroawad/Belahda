@@ -17,14 +17,20 @@ async function startServer() {
 
   // 0. ImageKit Authentication Endpoint for secure client-side uploads
   app.get('/api/imagekit/auth', (req, res) => {
-    const privateKey = process.env.IMAGEKIT_PRIVATE_KEY || '';
-    const publicKey = process.env.IMAGEKIT_PUBLIC_KEY || process.env.VITE_IMAGEKIT_PUBLIC_KEY || '';
-    const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT || process.env.VITE_IMAGEKIT_URL_ENDPOINT || '';
+    const privateKey = (process.env.IMAGEKIT_PRIVATE_KEY || '').trim();
+    const publicKey = (process.env.IMAGEKIT_PUBLIC_KEY || process.env.VITE_IMAGEKIT_PUBLIC_KEY || '').trim();
+    const urlEndpoint = (process.env.IMAGEKIT_URL_ENDPOINT || process.env.VITE_IMAGEKIT_URL_ENDPOINT || '').trim();
 
-    if (!privateKey || !publicKey || !urlEndpoint) {
+    const missing: string[] = [];
+    if (!publicKey) missing.push('IMAGEKIT_PUBLIC_KEY');
+    if (!privateKey) missing.push('IMAGEKIT_PRIVATE_KEY');
+    if (!urlEndpoint) missing.push('IMAGEKIT_URL_ENDPOINT');
+
+    if (missing.length > 0) {
       return res.status(503).json({
         configured: false,
-        error: 'ImageKit environment variables are not configured on the server.',
+        missing,
+        error: `Missing ImageKit environment variable(s): ${missing.join(', ')}`,
       });
     }
 

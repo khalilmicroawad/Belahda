@@ -1,20 +1,48 @@
 import { createClient, Session, User } from '@supabase/supabase-js';
 import { Listing, StoreProfile, UserAccount, CategoryId, ItemCondition, SellerType } from '../types';
 
-export const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL || 'https://yzseuychjsojkkqbtbjn.supabase.co';
-export const SUPABASE_ANON_KEY =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_h97VyRWzs_m7KgxgleLZzg_1cUAdAM9';
+export const SUPABASE_URL = (
+  import.meta.env.VITE_SUPABASE_URL || 'https://yzseuychjsojkkqbtbjn.supabase.co'
+).trim();
+export const SUPABASE_ANON_KEY = (
+  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_h97VyRWzs_m7KgxgleLZzg_1cUAdAM9'
+).trim();
 
 export const SUPABASE_BUCKET = 'app-uploads';
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+export function getSupabaseConfigStatus(): {
+  isValid: boolean;
+  missing: string[];
+  message: string;
+} {
+  const missing: string[] = [];
+  if (!SUPABASE_URL || !SUPABASE_URL.startsWith('https://')) {
+    missing.push('VITE_SUPABASE_URL');
+  }
+  if (!SUPABASE_ANON_KEY) {
+    missing.push('VITE_SUPABASE_ANON_KEY');
+  }
+  return {
+    isValid: missing.length === 0,
+    missing,
+    message:
+      missing.length > 0
+        ? `Missing or invalid Supabase configuration: ${missing.join(', ')}`
+        : '',
+  };
+}
+
+export const supabase = createClient(
+  SUPABASE_URL || 'https://invalid.supabase.co',
+  SUPABASE_ANON_KEY || 'missing-key',
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+  }
+);
 
 // ==========================================
 // 1. AUTHENTICATION (Email / Password)
@@ -164,23 +192,47 @@ export async function uploadFileToStorage(
 }
 
 // ==========================================
-// 4. LISTINGS TABLE (listings)
+// 4. POSTS & LISTINGS TABLES (posts / listings)
 // ==========================================
 
-function mapRowToListing(row: any): Listing {
+function formatPostDateLabel(isoDate?: string): string {
+  if (!isoDate) return 'اليوم';
+  const ts = new Date(isoDate).getTime();
+  if (Number.isNaN(ts)) return 'اليوم';
+  const diffMins = Math.floor((Date.now() - ts) / 60000);
+  if (diffMins < 2) return 'الآن';
+  if (diffMins < 60) return `منذ ${diffMins} د`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `اليوم · منذ ${diffHours} س`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'أمس';
+  if (diffDays < 7) return `منذ ${diffDays} أيام`;
+  return new Date(ts).toLocaleDateString('ar-IQ');
+}
+
+export function mapPostRowToListing(row: any): Listing {
   const fullImg = row.full_image_url || row.image_url || undefined;
   const thumbImg = row.thumbnail_url || undefined;
-  const fallbackUrls = Array.isArray(row.media_urls) && row.media_urls.length > 0
-    ? row.media_urls
-    : fullImg
-    ? [fullImg]
-    : thumbImg
-    ? [thumbImg]
-    : [];
+  const fallbackUrls =
+    Array.isArray(row.media_urls) && row.media_urls.length > 0
+      ? row.media_urls
+      : fullImg
+      ? [fullImg]
+      : thumbImg
+      ? [thumbImg]
+      : [];
+
+  const createdTs = row.created_timestamp
+    ? Number(row.created_timestamp)
+    : row.created_at
+    ? new Date(row.created_at).getTime()
+    : Date.now();
+
+  const sellerPhone = row.seller_phone || '';
 
   return {
-    id: row.id,
-    title: row.title,
+    id: String(row.id),
+    title: row.title || '',
     description: row.description || '',
     price: Number(row.price || 0),
     currency: row.currency || 'د.ع',
@@ -193,21 +245,234 @@ function mapRowToListing(row: any): Listing {
     storeLocation: row.store_location || undefined,
     city: row.city || 'الموصل',
     district: row.district || 'حي الزهور',
-    deliveryAvailable: Boolean(row.delivery_available),
+    deliveryAvailable: row.delivery_available !== undefined ? Boolean(row.delivery_available) : true,
     deliveryNotes: row.delivery_notes || undefined,
     mediaUrls: fallbackUrls,
-    thumbnailUrl: thumbImg || fallbackUrls[0],
-    fullImageUrl: fullImg || fallbackUrls[0],
-    contactOptions: row.contact_options || { directChat: true, whatsapp: true, phoneCall: true },
-    createdAt: row.created_at_label || 'اليوم',
-    createdTimestamp: Number(row.created_timestamp || Date.now()),
+    thumbnailUrl: thumbImg || fallbackUrls[0] || undefined,
+    fullImageUrl: fullImg || fallbackUrls[0] || undefined,
+    contactOptions:
+      row.contact_options && typeof row.contact_options === 'object'
+        ? {
+            directChat: Boolean(row.contact_options.directChat ?? true),
+            whatsapp: Boolean(row.contact_options.whatsapp ?? Boolean(sellerPhone)),
+            phoneCall: Boolean(row.contact_options.phoneCall ?? Boolean(sellerPhone)),
+            whatsappNumber: row.contact_options.whatsappNumber || sellerPhone || undefined,
+            phoneNumber: row.contact_options.phoneNumber || sellerPhone || undefined,
+          }
+        : {
+            directChat: true,
+            whatsapp: Boolean(sellerPhone),
+            phoneCall: Boolean(sellerPhone),
+            whatsappNumber: sellerPhone || undefined,
+            phoneNumber: sellerPhone || undefined,
+          },
+    createdAt: row.created_at_label || formatPostDateLabel(row.created_at),
+    createdTimestamp: createdTs,
     viewsCount: Number(row.views_count || 1),
     sellerId: row.user_id || undefined,
-    sellerName: row.seller_name || '',
-    sellerPhone: row.seller_phone || '',
+    sellerName: row.seller_name || 'بائع في سوق بلحظة',
+    sellerPhone,
     sellerAvatar: row.seller_avatar || undefined,
     isVerified: Boolean(row.is_verified),
   };
+}
+
+export interface FetchPostsResult {
+  posts: Listing[];
+  error: string | null;
+  errorCode: string | null;
+}
+
+/**
+ * Publicly fetches all posts directly from Supabase `posts` table ordered newest first (`created_at` descending).
+ * Never hides database errors behind mock arrays or localStorage.
+ */
+export async function fetchSupabasePosts(): Promise<FetchPostsResult> {
+  const cfg = getSupabaseConfigStatus();
+  if (!cfg.isValid) {
+    return {
+      posts: [],
+      error: cfg.message,
+      errorCode: 'MISSING_CONFIG',
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Supabase fetchSupabasePosts error:', error);
+    return {
+      posts: [],
+      error: error.message || 'Failed to load posts from Supabase.',
+      errorCode: error.code || 'SUPABASE_SELECT_ERROR',
+    };
+  }
+
+  return {
+    posts: (data || []).map(mapPostRowToListing),
+    error: null,
+    errorCode: null,
+  };
+}
+
+/**
+ * Subscribes to Supabase Realtime changes (INSERT, UPDATE, DELETE) on the public `posts` table.
+ */
+export function subscribeToSupabasePosts(callbacks: {
+  onInsert?: (listing: Listing) => void;
+  onUpdate?: (listing: Listing) => void;
+  onDelete?: (id: string) => void;
+}): () => void {
+  const channel = supabase
+    .channel(`public-posts-feed-${Date.now()}`)
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'posts' },
+      (payload) => {
+        if (payload.eventType === 'INSERT' && payload.new && callbacks.onInsert) {
+          callbacks.onInsert(mapPostRowToListing(payload.new));
+        } else if (payload.eventType === 'UPDATE' && payload.new && callbacks.onUpdate) {
+          callbacks.onUpdate(mapPostRowToListing(payload.new));
+        } else if (payload.eventType === 'DELETE' && payload.old?.id && callbacks.onDelete) {
+          callbacks.onDelete(String(payload.old.id));
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+function sanitizeUndefinedToNull(obj: any): any {
+  if (obj === undefined) return null;
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeUndefinedToNull);
+  const out: Record<string, any> = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      out[key] = sanitizeUndefinedToNull(val);
+    } else {
+      out[key] = null;
+    }
+  }
+  return out;
+}
+
+export interface SavePostResult {
+  ok: boolean;
+  savedListing?: Listing;
+  error?: string;
+  errorCode?: string;
+  errorDetails?: string;
+  errorHint?: string;
+}
+
+/**
+ * Inserts a newly created post directly into Supabase `posts` table using `.insert([...]).select().single()`.
+ * Verifies user via `supabase.auth.getUser()` so `user_id` is only attached if valid (otherwise `null`).
+ * Returns exact Supabase `error.message` and `error.code` if anything fails.
+ */
+export async function saveSupabasePost(listing: Listing): Promise<SavePostResult> {
+  const cfg = getSupabaseConfigStatus();
+  if (!cfg.isValid) {
+    return {
+      ok: false,
+      error: cfg.message,
+      errorCode: 'MISSING_CONFIG',
+    };
+  }
+
+  // Only attach user_id if Supabase Auth returns a verified logged-in user; otherwise null
+  const { data: userRes, error: authErr } = await supabase.auth.getUser();
+  const validUserId: string | null = !authErr && userRes?.user?.id ? userRes.user.id : null;
+
+  const cleanMediaUrls = Array.isArray(listing.mediaUrls)
+    ? listing.mediaUrls.filter((u): u is string => typeof u === 'string' && u.trim().length > 0)
+    : [];
+
+  const thumbnailUrl = listing.thumbnailUrl || cleanMediaUrls[0] || null;
+  const fullImageUrl = listing.fullImageUrl || cleanMediaUrls[0] || null;
+  const createdIso = new Date(listing.createdTimestamp || Date.now()).toISOString();
+
+  const rawPayload = {
+    id: listing.id,
+    user_id: validUserId,
+    title: (listing.title || '').trim(),
+    description: (listing.description || '').trim(),
+    price: Number.isFinite(Number(listing.price)) ? Number(listing.price) : 0,
+    currency: listing.currency || 'د.ع',
+    hide_price: Boolean(listing.hidePrice),
+    category: listing.category || 'electronics',
+    condition: listing.condition || 'new',
+    seller_type: listing.sellerType || 'personal',
+    store_id: listing.storeId || null,
+    store_name: listing.storeName || null,
+    store_location: listing.storeLocation ? sanitizeUndefinedToNull(listing.storeLocation) : null,
+    city: listing.city || 'الموصل',
+    district: listing.district || 'حي الزهور',
+    delivery_available: Boolean(listing.deliveryAvailable),
+    delivery_notes: listing.deliveryNotes || null,
+    media_urls: cleanMediaUrls.length > 0 ? cleanMediaUrls : fullImageUrl ? [fullImageUrl] : [],
+    thumbnail_url: thumbnailUrl,
+    full_image_url: fullImageUrl,
+    contact_options: sanitizeUndefinedToNull({
+      directChat: Boolean(listing.contactOptions?.directChat ?? true),
+      whatsapp: Boolean(listing.contactOptions?.whatsapp ?? false),
+      phoneCall: Boolean(listing.contactOptions?.phoneCall ?? false),
+      whatsappNumber: listing.contactOptions?.whatsappNumber || listing.sellerPhone || null,
+      phoneNumber: listing.contactOptions?.phoneNumber || listing.sellerPhone || null,
+    }),
+    seller_name: (listing.sellerName || '').trim(),
+    seller_phone: (listing.sellerPhone || '').trim(),
+    seller_avatar: listing.sellerAvatar || null,
+    is_verified: Boolean(listing.isVerified),
+    views_count: Number(listing.viewsCount || 1),
+    created_at: createdIso,
+  };
+
+  const cleanPayload = sanitizeUndefinedToNull(rawPayload);
+
+  const { data, error } = await supabase
+    .from('posts')
+    .insert([cleanPayload])
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Supabase posts.insert error:', error);
+    return {
+      ok: false,
+      error:
+        error?.message ||
+        'Supabase insert returned no saved row (verify RLS INSERT/SELECT policies on posts).',
+      errorCode: error?.code || 'INSERT_FAILED',
+      errorDetails: error?.details || undefined,
+      errorHint: error?.hint || undefined,
+    };
+  }
+
+  return {
+    ok: true,
+    savedListing: mapPostRowToListing(data),
+  };
+}
+
+export async function deleteSupabasePost(id: string): Promise<boolean> {
+  const { error } = await supabase.from('posts').delete().eq('id', id);
+  if (error) {
+    console.warn('Supabase deletePost warning:', error.message);
+    return false;
+  }
+  return true;
+}
+
+function mapRowToListing(row: any): Listing {
+  return mapPostRowToListing(row);
 }
 
 export async function fetchSupabaseListings(): Promise<Listing[] | null> {
@@ -261,26 +526,6 @@ export async function saveSupabaseListing(listing: Listing, authUserId?: string)
     { onConflict: 'id' }
   );
 
-  // Also sync directly to `posts` table (with thumbnail_url & full_image_url) if present
-  supabase
-    .from('posts')
-    .upsert(
-      {
-        id: listing.id,
-        user_id: authUserId || listing.sellerId || null,
-        title: listing.title,
-        description: listing.description,
-        price: Number(listing.price || 0),
-        currency: listing.currency || 'د.ع',
-        category: listing.category,
-        thumbnail_url: thumbnailUrl,
-        full_image_url: fullImageUrl,
-        created_at: new Date(listing.createdTimestamp || Date.now()).toISOString(),
-      },
-      { onConflict: 'id' }
-    )
-    .then(() => {}, () => {});
-
   if (error) {
     console.warn('Supabase saveListing warning:', error.message);
     return false;
@@ -289,12 +534,7 @@ export async function saveSupabaseListing(listing: Listing, authUserId?: string)
 }
 
 export async function deleteSupabaseListing(id: string): Promise<boolean> {
-  const { error } = await supabase.from('listings').delete().eq('id', id);
-  if (error) {
-    console.warn('Supabase deleteListing warning:', error.message);
-    return false;
-  }
-  return true;
+  return deleteSupabasePost(id);
 }
 
 // ==========================================

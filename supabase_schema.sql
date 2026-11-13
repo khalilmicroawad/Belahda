@@ -57,7 +57,7 @@ create table if not exists public.listings (
   created_at timestamptz not null default now()
 );
 
--- 2B-2. Posts Table (dual-image post records)
+-- 2B-2. Posts Table (shared public marketplace posts with dual-image URLs)
 create table if not exists public.posts (
   id text primary key,
   user_id uuid references auth.users(id) on delete set null,
@@ -65,9 +65,26 @@ create table if not exists public.posts (
   description text not null default '',
   price numeric not null default 0,
   currency text not null default 'د.ع',
+  hide_price boolean not null default false,
   category text not null default 'electronics',
+  condition text not null default 'new',
+  seller_type text not null default 'personal',
+  store_id text,
+  store_name text,
+  store_location jsonb,
+  city text not null default 'الموصل',
+  district text not null default 'حي الزهور',
+  delivery_available boolean not null default true,
+  delivery_notes text,
+  media_urls jsonb not null default '[]'::jsonb,
   thumbnail_url text,
   full_image_url text,
+  contact_options jsonb not null default '{}'::jsonb,
+  seller_name text not null default '',
+  seller_phone text not null default '',
+  seller_avatar text,
+  is_verified boolean not null default false,
+  views_count integer not null default 1,
   created_at timestamptz not null default now()
 );
 
@@ -190,20 +207,34 @@ create policy "Users can delete own listings"
   on public.listings for delete
   using (auth.uid() = user_id or user_id is null);
 
--- Posts Policies
+-- Posts Policies (Public read for anon & authenticated; Insert restricted to authenticated users)
 drop policy if exists "Posts are viewable by everyone" on public.posts;
 create policy "Posts are viewable by everyone"
-  on public.posts for select using (true);
+  on public.posts for select
+  to anon, authenticated
+  using (true);
 
 drop policy if exists "Anyone or authenticated users can create posts" on public.posts;
-create policy "Anyone or authenticated users can create posts"
+drop policy if exists "Authenticated users can create posts" on public.posts;
+create policy "Authenticated users can create posts"
   on public.posts for insert
-  with check (auth.uid() = user_id or user_id is null);
+  to authenticated
+  with check (auth.uid() = user_id);
 
 drop policy if exists "Users can update own posts" on public.posts;
 create policy "Users can update own posts"
   on public.posts for update
-  using (auth.uid() = user_id or user_id is null);
+  to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own posts" on public.posts;
+create policy "Users can delete own posts"
+  on public.posts for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- Enable Realtime on posts table
+alter publication supabase_realtime add table public.posts;
 
 -- Stores Policies
 drop policy if exists "Stores are viewable by everyone" on public.stores;

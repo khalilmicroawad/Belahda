@@ -104,8 +104,9 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   };
 
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const fullResPhotos = listing.mediaUrls.length > 0
-    ? listing.mediaUrls
+  const safeMediaUrls = Array.isArray(listing.mediaUrls) ? listing.mediaUrls : [];
+  const fullResPhotos = safeMediaUrls.length > 0
+    ? safeMediaUrls
     : listing.fullImageUrl
     ? [listing.fullImageUrl]
     : listing.thumbnailUrl
@@ -114,11 +115,12 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const activePhotoSrc =
     (activePhotoIdx === 0 && listing.fullImageUrl) ||
     fullResPhotos[activePhotoIdx] ||
-    fullResPhotos[0];
+    fullResPhotos[0] ||
+    null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-3 animate-fadeIn select-none text-xs">
-      {isLightboxOpen && (
+      {isLightboxOpen && activePhotoSrc && (
         <div
           onClick={() => setIsLightboxOpen(false)}
           className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-3 animate-fadeIn cursor-zoom-out"
@@ -132,7 +134,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
           </button>
           <img
             src={activePhotoSrc}
-            alt={listing.title}
+            alt={listing.title || 'صورة المنتج'}
             referrerPolicy="no-referrer"
             className="max-w-full max-h-[88vh] object-contain rounded-xl shadow-2xl"
           />
@@ -175,15 +177,19 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
           {/* Main Visual (Full-Resolution Image from ImageKit) */}
           <div
-            onClick={() => setIsLightboxOpen(true)}
-            className="relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 shadow-inner cursor-zoom-in"
+            onClick={() => { if (activePhotoSrc) setIsLightboxOpen(true); }}
+            className={`relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 shadow-inner flex items-center justify-center ${activePhotoSrc ? 'cursor-zoom-in' : ''}`}
           >
-            <img
-              src={activePhotoSrc}
-              alt={listing.title}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover"
-            />
+            {activePhotoSrc ? (
+              <img
+                src={activePhotoSrc}
+                alt={listing.title || 'صورة المنتج'}
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-slate-400 text-xs">{isAr ? 'لا توجد صورة' : 'No image available'}</span>
+            )}
 
             <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
               <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
@@ -228,10 +234,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 ) : (
                   <div className="flex items-baseline gap-1 text-emerald-800">
                     <span className="text-xl font-black font-mono tabular-nums">
-                      {listing.price.toLocaleString()}
+                      {Number(listing.price ?? 0).toLocaleString()}
                     </span>
                     <span className="text-[10px] font-bold">
-                      {listing.currency}
+                      {listing.currency || 'د.ع'}
                     </span>
                   </div>
                 )}
@@ -276,7 +282,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               تفاصيل ومواصفات السلعة:
             </h2>
             <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
-              {listing.description}
+              {listing.description || (isAr ? 'لم تتم إضافة تفاصيل إضافية.' : 'No additional description.')}
             </p>
           </div>
 
@@ -317,7 +323,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
 
             {/* Google Maps Location for both Commercial and Personal Sellers */}
-            {listing.storeLocation && (
+            {listing.storeLocation && typeof listing.storeLocation.lat === 'number' && typeof listing.storeLocation.lng === 'number' && (
               <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] space-y-2">
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="flex items-start gap-1.5">
@@ -364,7 +370,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
         {/* Sticky Bottom Actions */}
         <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-2">
-          {listing.contactOptions.whatsapp ? (
+          {listing.contactOptions?.whatsapp ? (
             <button
               type="button"
               onClick={handleWhatsApp}

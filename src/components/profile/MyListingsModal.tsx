@@ -197,8 +197,8 @@ export const MyListingsModal: React.FC<MyListingsModalProps> = ({
                   }}
                 >
                   <img
-                    src={item.mediaUrls[0]}
-                    alt={item.title}
+                    src={item.thumbnailUrl || (item.mediaUrls && item.mediaUrls[0]) || '/src/assets/images/listing_iphone_pro_1794306234850.jpg'}
+                    alt={item.title || 'منتج'}
                     referrerPolicy="no-referrer"
                     className="w-11 h-11 rounded-xl object-cover shrink-0 border border-slate-200"
                   />

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Image as ImageIcon, Upload, X, Check, RefreshCw, Zap, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { Camera, Image as ImageIcon, Upload, X, RefreshCw, Zap, Sparkles, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { performDualProductImageUpload } from '../../lib/mediaUpload';
 
 interface MediaSelectorStepProps {
@@ -7,6 +7,7 @@ interface MediaSelectorStepProps {
   onChange: (urls: string[]) => void;
   onUploadingChange?: (uploading: boolean) => void;
   onDualMediaUploaded?: (thumbnailUrl: string, fullImageUrl: string) => void;
+  onUploadError?: (errorMessage: string | null) => void;
   lang?: 'ar' | 'en';
 }
 
@@ -38,6 +39,7 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   onChange,
   onUploadingChange,
   onDualMediaUploaded,
+  onUploadError,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
@@ -47,6 +49,7 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatusMsg, setUploadStatusMsg] = useState<string | null>(null);
+  const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +58,11 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
   const setUploadingState = (val: boolean) => {
     setIsUploading(val);
     if (onUploadingChange) onUploadingChange(val);
+  };
+
+  const reportError = (msg: string | null) => {
+    setUploadErrorMsg(msg);
+    if (onUploadError) onUploadError(msg);
   };
 
   useEffect(() => {
@@ -95,17 +103,6 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
     }
   }, [isCameraActive, facingMode, isAr]);
 
-  const readFileAsDataUrl = (file: Blob): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        if (typeof ev.target?.result === 'string') resolve(ev.target.result);
-        else reject(new Error('Failed to read file'));
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-
   const snapPhoto = () => {
     if (videoRef.current && streamRef.current) {
       const canvas = document.createElement('canvas');
@@ -121,25 +118,23 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         setIsCameraActive(false);
         setUploadingState(true);
         setUploadStatusMsg(null);
+        reportError(null);
         canvas.toBlob(
           async (blob) => {
             try {
-              if (blob) {
-                const res = await performDualProductImageUpload(blob);
-                onChange([...mediaUrls, res.fullImageUrl]);
-                if (onDualMediaUploaded) {
-                  onDualMediaUploaded(res.thumbnailUrl, res.fullImageUrl);
-                }
-                setUploadStatusMsg(
-                  isAr
-                    ? `تم حفظ الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية بنجاح ✓`
-                    : `Saved thumbnail (${res.thumbnailSizeKB} KB) & full image ✓`
-                );
-                return;
+              if (!blob) throw new Error('Failed to capture camera frame');
+              const res = await performDualProductImageUpload(blob);
+              onChange([...mediaUrls, res.fullImageUrl]);
+              if (onDualMediaUploaded) {
+                onDualMediaUploaded(res.thumbnailUrl, res.fullImageUrl);
               }
-            } catch {
-              const fallbackData = canvas.toDataURL('image/jpeg', 0.88);
-              onChange([...mediaUrls, fallbackData]);
+              setUploadStatusMsg(
+                isAr
+                  ? `تم حفظ الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية عبر ImageKit بنجاح ✓`
+                  : `Saved thumbnail (${res.thumbnailSizeKB} KB) & full ImageKit image ✓`
+              );
+            } catch (err: any) {
+              reportError(err?.message || (isAr ? 'فشل رفع الصورة، يرجى المحاولة مجدداً' : 'Image upload failed'));
             } finally {
               setUploadingState(false);
             }
@@ -151,9 +146,8 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
       }
     }
 
-    const fallbackImage = PRESET_ASSETS[Math.floor(Math.random() * PRESET_ASSETS.length)].url;
-    onChange([...mediaUrls, fallbackImage]);
     setIsCameraActive(false);
+    reportError(isAr ? 'الكاميرا غير متوفرة حالياً، يرجى اختيار صورة من الاستوديو' : 'Camera unavailable, please pick a photo from gallery.');
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,6 +156,7 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
 
     setUploadingState(true);
     setUploadStatusMsg(null);
+    reportError(null);
     const uploadedFullUrls: string[] = [];
 
     for (const file of Array.from(files)) {
@@ -173,12 +168,11 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         }
         setUploadStatusMsg(
           isAr
-            ? `تم رفع الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية ${res.usedImageKit ? 'عبر ImageKit' : ''} بنجاح ✓`
-            : `Uploaded thumbnail (${res.thumbnailSizeKB} KB) & full-res image ✓`
+            ? `تم رفع الصورة المصغرة (${res.thumbnailSizeKB} KB) والأصلية عبر ImageKit بنجاح ✓`
+            : `Uploaded thumbnail (${res.thumbnailSizeKB} KB) & full-res ImageKit image ✓`
         );
-      } catch {
-        const dataUrl = await readFileAsDataUrl(file).catch(() => null);
-        if (dataUrl) uploadedFullUrls.push(dataUrl);
+      } catch (err: any) {
+        reportError(err?.message || (isAr ? 'فشل رفع الصورة، يرجى التحقق من الإعدادات' : 'Image upload failed'));
       }
     }
 
@@ -276,6 +270,20 @@ export const MediaSelectorStep: React.FC<MediaSelectorStepProps> = ({
         <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-[10px] font-bold flex items-center gap-1.5 animate-fadeIn">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
           <span>{uploadStatusMsg}</span>
+        </div>
+      )}
+
+      {!isUploading && uploadErrorMsg && (
+        <div className="p-2.5 rounded-xl bg-red-50 border border-red-300 text-red-800 text-[11px] font-semibold flex items-start gap-2 animate-shake">
+          <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold block">
+              {isAr ? 'فشل رفع الصورة:' : 'Image Upload Failed:'}
+            </span>
+            <span className="text-[10px] text-red-700 block break-words select-text" dir="ltr">
+              {uploadErrorMsg}
+            </span>
+          </div>
         </div>
       )}
 

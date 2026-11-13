@@ -17,7 +17,10 @@ import {
   ChevronDown,
   ArrowUpDown,
   Check,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  RefreshCw,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Listing, CategoryId, ItemCondition, UserAccount } from '../../types';
 import { CATEGORIES, MOSUL_DISTRICTS } from '../../data/categories';
@@ -31,6 +34,9 @@ interface MarketplaceFeedProps {
   onRequireAuth: (pendingAction: () => void, message?: string) => void;
   newlyPublishedId?: string | null;
   resetTrigger?: number;
+  isLoading?: boolean;
+  feedError?: { message: string; code?: string } | null;
+  onRetryFetch?: () => void;
   lang?: 'ar' | 'en';
 }
 
@@ -43,6 +49,9 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
   onRequireAuth,
   newlyPublishedId,
   resetTrigger,
+  isLoading = false,
+  feedError = null,
+  onRetryFetch,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
@@ -381,6 +390,35 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
 
       {/* MAIN LISTINGS STREAM WITH ORGANIZED TEXT SPACING & CLEAN HIERARCHY */}
       <div className="p-3 sm:p-4 space-y-3.5">
+        {/* Supabase Fetch Error Alert Box */}
+        {feedError && (
+          <div className="p-3 rounded-2xl bg-red-50 border-2 border-red-300 text-red-900 text-[11px] space-y-2 animate-fadeIn">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-red-800">
+                    {isAr ? 'تعذر تحميل الإعلانات من Supabase:' : 'Failed to load posts from Supabase:'}
+                  </p>
+                  <p className="font-mono text-[10px] text-red-700 mt-0.5 break-words select-text" dir="ltr">
+                    {feedError.code ? `[${feedError.code}] ` : ''}{feedError.message}
+                  </p>
+                </div>
+              </div>
+              {onRetryFetch && (
+                <button
+                  type="button"
+                  onClick={onRetryFetch}
+                  className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[10px] flex items-center gap-1 shrink-0"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>{isAr ? 'إعادة المحاولة' : 'Retry'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Instant Publishing Banner */}
         {newlyPublishedId && (
           <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md flex items-center justify-between animate-fadeIn">
@@ -391,7 +429,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   {isAr ? 'تم نشر إعلانك فوراً في صدارة سوق الموصل!' : 'Listing published at top!'}
                 </p>
                 <p className="text-[10px] text-emerald-100 leading-normal">
-                  {isAr ? 'مرتبط بحسابك برقم الهاتف ويمكنك إدارته من لوحة التحكم' : 'Linked to your account'}
+                  {isAr ? 'تم حفظه بنجاح في قاعدة البيانات وظهوره مباشرة للجميع' : 'Saved permanently to Supabase'}
                 </p>
               </div>
             </div>
@@ -436,27 +474,58 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
           </div>
         </div>
 
-        {/* Empty State */}
-        {filteredListings.length === 0 ? (
+        {/* Loading / Empty State */}
+        {isLoading && listings.length === 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {[1, 2, 3, 4].map((skeleton) => (
+              <div
+                key={skeleton}
+                className="rounded-3xl overflow-hidden bg-white border border-slate-200 animate-pulse"
+              >
+                <div className="aspect-16/10 bg-slate-200" />
+                <div className="p-4 space-y-2.5">
+                  <div className="h-4 bg-slate-200 rounded w-1/3" />
+                  <div className="h-3.5 bg-slate-200 rounded w-4/5" />
+                  <div className="h-3 bg-slate-100 rounded w-full" />
+                  <div className="h-8 bg-slate-100 rounded-xl w-full mt-2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredListings.length === 0 ? (
           <div className="p-8 text-center bg-white rounded-3xl border border-slate-200 space-y-3 my-4 shadow-2xs">
             <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 mx-auto flex items-center justify-center">
               <Search className="w-6 h-6" />
             </div>
             <div className="space-y-1">
               <h3 className="text-xs font-bold text-slate-800">
-                {isAr ? 'لا توجد إعلانات مطابقة لهذه الفلاتر' : 'No matching listings found'}
+                {listings.length === 0
+                  ? (isAr ? 'لا توجد إعلانات منشورة بعد' : 'No posts yet')
+                  : (isAr ? 'لا توجد إعلانات مطابقة لهذه الفلاتر' : 'No matching listings found')}
               </h3>
               <p className="text-[11px] text-slate-500 max-w-xs mx-auto leading-relaxed">
-                {isAr ? 'جرب اختيار حي آخر بالموصل أو مسح فلاتر التاريخ والتصنيف' : 'Try clearing filters or selecting another district'}
+                {listings.length === 0
+                  ? (isAr ? 'كن أول من ينشر إعلاناً ليظهر فوراً لجميع زوار سوق الموصل' : 'Be the first to publish a post')
+                  : (isAr ? 'جرب اختيار حي آخر بالموصل أو مسح فلاتر التاريخ والتصنيف' : 'Try clearing filters or selecting another district')}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={resetAllFilters}
-              className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-colors"
-            >
-              {isAr ? 'إعادة ضبط كافة الفلاتر' : 'Reset All Filters'}
-            </button>
+            {listings.length === 0 ? (
+              <button
+                type="button"
+                onClick={onOpenCreate}
+                className="text-[11px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl transition-colors"
+              >
+                {isAr ? 'أضف أول إعلان الآن' : 'Create First Post'}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={resetAllFilters}
+                className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-4 py-2 rounded-xl transition-colors"
+              >
+                {isAr ? 'إعادة ضبط كافة الفلاتر' : 'Reset All Filters'}
+              </button>
+            )}
           </div>
         ) : (
           /* High-Contrast Organized Product Cards */
@@ -464,6 +533,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             {filteredListings.map((item) => {
               const isFav = !!favorites[item.id];
               const isHighlight = item.id === newlyPublishedId;
+              const categoryDef = CATEGORIES.find((c) => c.id === item.category);
 
               return (
                 <div
@@ -476,14 +546,21 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   }`}
                 >
                   {/* Visual Header */}
-                  <div className="relative aspect-16/10 bg-slate-100 overflow-hidden">
-                    <img
-                      src={item.thumbnailUrl || item.mediaUrls[0]}
-                      alt={item.title}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
-                    />
+                  <div className="relative aspect-16/10 bg-slate-100 overflow-hidden flex items-center justify-center">
+                    {(item.thumbnailUrl || (item.mediaUrls && item.mediaUrls[0])) ? (
+                      <img
+                        src={item.thumbnailUrl || item.mediaUrls[0]}
+                        alt={item.title || 'منتج'}
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 gap-1">
+                        <ImageIcon className="w-7 h-7 opacity-60" />
+                        <span className="text-[10px]">{isAr ? 'بدون صورة' : 'No image'}</span>
+                      </div>
+                    )}
 
                     {/* Top Right Badges: Delivery and Shop Flag */}
                     <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
@@ -522,7 +599,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                     </div>
 
                     {/* Photo Count if Multiple */}
-                    {item.mediaUrls.length > 1 && (
+                    {Array.isArray(item.mediaUrls) && item.mediaUrls.length > 1 && (
                       <div className="absolute bottom-2 left-2.5 bg-black/60 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded">
                         +{item.mediaUrls.length - 1} {isAr ? 'صور' : 'photos'}
                       </div>
@@ -541,36 +618,55 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                         ) : (
                           <div className="flex items-baseline gap-1 text-emerald-800">
                             <span className="text-base sm:text-lg font-black font-mono tabular-nums leading-none">
-                              {item.price.toLocaleString()}
+                              {Number(item.price ?? 0).toLocaleString()}
                             </span>
                             <span className="text-[11px] font-bold">
-                              {item.currency}
+                              {item.currency || 'د.ع'}
                             </span>
                           </div>
                         )}
 
                         <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
                           <Calendar className="w-2.5 h-2.5" />
-                          <span>{item.createdAt}</span>
+                          <span>{item.createdAt || 'اليوم'}</span>
                         </span>
                       </div>
 
-                      {/* Title with Balanced Leading */}
-                      <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 line-clamp-2 leading-relaxed group-hover:text-emerald-700 transition-colors">
-                        {item.title}
-                      </h3>
+                      {/* Category & Title with Balanced Leading */}
+                      <div className="space-y-1">
+                        {categoryDef && (
+                          <span className="inline-block text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                            {isAr ? categoryDef.nameAr : categoryDef.nameEn}
+                          </span>
+                        )}
+                        <h3 className="text-xs sm:text-[13px] font-bold text-slate-900 line-clamp-2 leading-relaxed group-hover:text-emerald-700 transition-colors">
+                          {item.title || (isAr ? 'إعلان بدون عنوان' : 'Untitled Post')}
+                        </h3>
+                        {item.description && (
+                          <p className="text-[11px] text-slate-500 line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Metadata Footer: Seller Info & Condition */}
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-                      <span className="font-semibold text-slate-700 truncate max-w-[140px] flex items-center gap-1">
+                    {/* Metadata Footer: Seller Details & Condition */}
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         {item.sellerType === 'commercial' ? (
-                          <Store className="w-3 h-3 text-emerald-600 shrink-0" />
+                          <Store className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                         ) : (
-                          <User className="w-3 h-3 text-slate-400 shrink-0" />
+                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         )}
-                        <span className="truncate">{item.sellerType === 'commercial' ? item.storeName : item.sellerName}</span>
-                      </span>
+                        <span className="font-semibold text-slate-700 truncate">
+                          {item.sellerType === 'commercial' ? (item.storeName || item.sellerName || 'متجر') : (item.sellerName || 'بائع')}
+                        </span>
+                        {item.sellerPhone && (
+                          <span className="text-[10px] text-slate-400 font-mono truncate hidden xs:inline">
+                            · {item.sellerPhone}
+                          </span>
+                        )}
+                      </div>
 
                       <span className="text-[10px] font-semibold text-slate-500 shrink-0">
                         {item.condition === 'new' ? (isAr ? 'جديد' : 'New') : (isAr ? 'بحالة جيدة' : 'Good')}
@@ -579,7 +675,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
 
                     {/* Contact Action Buttons */}
                     <div className="pt-1.5 grid grid-cols-2 gap-2">
-                      {item.contactOptions.whatsapp ? (
+                      {item.contactOptions?.whatsapp ? (
                         <button
                           type="button"
                           onClick={(e) => handleWhatsAppClick(item, e)}
