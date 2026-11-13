@@ -77,9 +77,13 @@ export interface Listing {
   category: CategoryId;
   condition: ItemCondition;
   sellerType: SellerType;
+  adType?: SellerType;
   storeId?: string;
   storeName?: string;
   storeLocation?: StoreLocation;
+  latitude?: number;
+  longitude?: number;
+  mapsUrl?: string;
   city: string; // 'الموصل' (Mosul)
   district: string; // e.g. 'حي الزهور', 'المجموعة الثقافية', 'الدواسة', etc.
   deliveryAvailable: boolean; // متوفر توصيل أو غير متوفر

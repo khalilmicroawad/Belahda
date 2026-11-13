@@ -229,6 +229,24 @@ export function mapPostRowToListing(row: any): Listing {
     : Date.now();
 
   const sellerPhone = row.seller_phone || '';
+  const resolvedAdType = (row.ad_type || row.seller_type || 'personal') as SellerType;
+  const latNum =
+    row.latitude != null && !Number.isNaN(Number(row.latitude))
+      ? Number(row.latitude)
+      : row.store_location?.lat != null
+      ? Number(row.store_location.lat)
+      : undefined;
+  const lngNum =
+    row.longitude != null && !Number.isNaN(Number(row.longitude))
+      ? Number(row.longitude)
+      : row.store_location?.lng != null
+      ? Number(row.store_location.lng)
+      : undefined;
+  const resolvedMapsUrl =
+    row.maps_url ||
+    (latNum !== undefined && lngNum !== undefined
+      ? `https://www.google.com/maps?q=${latNum},${lngNum}`
+      : undefined);
 
   return {
     id: String(row.id),
@@ -239,10 +257,14 @@ export function mapPostRowToListing(row: any): Listing {
     hidePrice: Boolean(row.hide_price),
     category: (row.category || 'electronics') as CategoryId,
     condition: (row.condition || 'new') as ItemCondition,
-    sellerType: (row.seller_type || 'personal') as SellerType,
-    storeId: row.store_id || undefined,
+    sellerType: resolvedAdType,
+    adType: resolvedAdType,
+    storeId: row.store_id ? String(row.store_id) : undefined,
     storeName: row.store_name || undefined,
     storeLocation: row.store_location || undefined,
+    latitude: latNum,
+    longitude: lngNum,
+    mapsUrl: resolvedMapsUrl,
     city: row.city || 'الموصل',
     district: row.district || 'حي الزهور',
     deliveryAvailable: row.delivery_available !== undefined ? Boolean(row.delivery_available) : true,
@@ -399,6 +421,25 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
   const fullImageUrl = listing.fullImageUrl || cleanMediaUrls[0] || null;
   const createdIso = new Date(listing.createdTimestamp || Date.now()).toISOString();
 
+  const resolvedAdType: SellerType = listing.adType || listing.sellerType || 'personal';
+  let resolvedStoreId: string | null = listing.storeId || null;
+  let resolvedStoreName: string | null = listing.storeName || null;
+
+  // Automatically attach owner's store_id if user owns a store and selected Commercial
+  if (validUserId && resolvedAdType === 'commercial' && !resolvedStoreId) {
+    const ownedStore = await fetchUserOwnedStore(validUserId).catch(() => null);
+    if (ownedStore) {
+      resolvedStoreId = String(ownedStore.id);
+      resolvedStoreName = ownedStore.name || resolvedStoreName;
+    }
+  }
+
+  const latVal = listing.latitude ?? listing.storeLocation?.lat ?? null;
+  const lngVal = listing.longitude ?? listing.storeLocation?.lng ?? null;
+  const mapsUrlVal =
+    listing.mapsUrl ||
+    (latVal !== null && lngVal !== null ? `https://www.google.com/maps?q=${latVal},${lngVal}` : null);
+
   const rawPayload = {
     id: listing.id,
     user_id: validUserId,
@@ -409,10 +450,14 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
     hide_price: Boolean(listing.hidePrice),
     category: listing.category || 'electronics',
     condition: listing.condition || 'new',
-    seller_type: listing.sellerType || 'personal',
-    store_id: listing.storeId || null,
-    store_name: listing.storeName || null,
+    seller_type: resolvedAdType,
+    ad_type: resolvedAdType,
+    store_id: resolvedStoreId,
+    store_name: resolvedStoreName,
     store_location: listing.storeLocation ? sanitizeUndefinedToNull(listing.storeLocation) : null,
+    latitude: latVal,
+    longitude: lngVal,
+    maps_url: mapsUrlVal,
     city: listing.city || 'الموصل',
     district: listing.district || 'حي الزهور',
     delivery_available: Boolean(listing.deliveryAvailable),
@@ -430,7 +475,7 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
     seller_name: (listing.sellerName || '').trim(),
     seller_phone: (listing.sellerPhone || '').trim(),
     seller_avatar: listing.sellerAvatar || null,
-    is_verified: Boolean(listing.isVerified),
+    is_verified: Boolean(listing.isVerified || resolvedStoreId),
     views_count: Number(listing.viewsCount || 1),
     created_at: createdIso,
   };
@@ -625,39 +670,47 @@ export async function deleteSupabaseListing(id: string): Promise<boolean> {
 // ==========================================
 
 function mapRowToStore(row: any): StoreProfile {
+  const storeName = row.store_name || row.name || 'متجر في سوق بلحظة';
+  const storePhone = row.phone || row.phone_number || row.owner_phone || row.whatsapp_number || '';
   return {
-    id: row.id,
-    name: row.name,
+    id: String(row.id),
+    name: storeName,
     ownerId: row.owner_id || undefined,
-    ownerPhone: row.owner_phone || '',
+    ownerPhone: row.owner_phone || storePhone,
     description: row.description || '',
     logoUrl: row.logo_url || undefined,
     coverUrl: row.cover_url || undefined,
-    district: row.district || 'حي الزهور',
+    district: row.district || 'الموصل',
     city: row.city || 'الموصل',
     address: row.address || '',
     category: (row.category || 'electronics') as CategoryId,
-    whatsappNumber: row.whatsapp_number || '',
-    phoneNumber: row.phone_number || '',
+    whatsappNumber: row.whatsapp_number || storePhone,
+    phoneNumber: storePhone,
     socialLinks: row.social_links || undefined,
     deliveryAvailable: Boolean(row.delivery_available),
     deliveryNotes: row.delivery_notes || undefined,
-    isVerified: Boolean(row.is_verified),
-    totalListingsCount: Number(row.total_listings_count || 1),
+    isVerified: row.is_verified !== undefined ? Boolean(row.is_verified) : true,
+    totalListingsCount: Number(row.total_listings_count || 0),
     rating: row.rating ? Number(row.rating) : 5.0,
     lat: row.lat ? Number(row.lat) : undefined,
     lng: row.lng ? Number(row.lng) : undefined,
     lastActiveAt: row.last_active_at ? Number(row.last_active_at) : undefined,
     isArchived: Boolean(row.is_archived),
-    createdAt: Number(row.created_at_ts || Date.now()),
+    createdAt: Number(row.created_at_ts || (row.created_at ? new Date(row.created_at).getTime() : Date.now())),
   };
 }
 
 export async function fetchSupabaseStores(): Promise<StoreProfile[] | null> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('stores')
     .select('*')
-    .order('created_at_ts', { ascending: false });
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    const fallback = await supabase.from('stores').select('*');
+    data = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) {
     console.warn('Supabase fetchStores warning:', error.message);
@@ -666,12 +719,180 @@ export async function fetchSupabaseStores(): Promise<StoreProfile[] | null> {
   return (data || []).map(mapRowToStore);
 }
 
+export async function fetchUserOwnedStore(ownerId: string): Promise<StoreProfile | null> {
+  if (!ownerId) return null;
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return mapRowToStore(data);
+}
+
+export async function fetchStoreById(storeId: string): Promise<StoreProfile | null> {
+  if (!storeId) return null;
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .eq('id', storeId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return mapRowToStore(data);
+}
+
+export async function fetchPostsByStoreId(storeId: string): Promise<Listing[]> {
+  if (!storeId) return [];
+  const { data, error } = await supabase
+    .from('posts')
+    .select('*')
+    .eq('store_id', storeId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Supabase fetchPostsByStoreId warning:', error.message);
+    return [];
+  }
+  return (data || []).map(mapPostRowToListing);
+}
+
+export async function fetchUserCommercialStats(userId: string): Promise<{
+  commercialCount: number;
+  userStore: StoreProfile | null;
+}> {
+  if (!userId) return { commercialCount: 0, userStore: null };
+
+  const [storeRes, adTypeCountRes] = await Promise.all([
+    fetchUserOwnedStore(userId),
+    supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('ad_type', 'commercial'),
+  ]);
+
+  let commercialCount = 0;
+  if (!adTypeCountRes.error && typeof adTypeCountRes.count === 'number') {
+    commercialCount = adTypeCountRes.count;
+  } else {
+    // Fallback if ad_type column is not yet in schema cache
+    const sellerTypeRes = await supabase
+      .from('posts')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('seller_type', 'commercial');
+    commercialCount = typeof sellerTypeRes.count === 'number' ? sellerTypeRes.count : 0;
+  }
+
+  return {
+    commercialCount,
+    userStore: storeRes,
+  };
+}
+
+export async function createUserFreeStore(params: {
+  ownerId: string;
+  storeName: string;
+  phone: string;
+}): Promise<{ ok: boolean; store?: StoreProfile; error?: string }> {
+  const { ownerId, storeName, phone } = params;
+  const cleanName = storeName.trim();
+  const cleanPhone = phone.trim();
+
+  if (!ownerId || !cleanName || !cleanPhone) {
+    return { ok: false, error: 'Missing owner, store name, or phone number.' };
+  }
+
+  let payload: Record<string, any> = {
+    id: `store-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    owner_id: ownerId,
+    store_name: cleanName,
+    name: cleanName,
+    phone: cleanPhone,
+    phone_number: cleanPhone,
+    owner_phone: cleanPhone,
+    whatsapp_number: cleanPhone,
+    is_verified: true,
+    created_at_ts: Date.now(),
+  };
+
+  let insertedRow: any = null;
+  let lastError: any = null;
+
+  for (let i = 0; i < 15; i++) {
+    const res = await supabase.from('stores').insert([payload]).select().single();
+    insertedRow = res.data;
+    lastError = res.error;
+
+    if (!lastError && insertedRow) break;
+
+    if (lastError?.code === 'PGRST204' && typeof lastError.message === 'string') {
+      const m = lastError.message.match(/Could not find the '([^']+)' column/i);
+      const col = m?.[1];
+      if (col && col in payload) {
+        delete payload[col];
+        continue;
+      }
+    }
+
+    if (lastError?.code === '22P02' && typeof lastError.message === 'string') {
+      const lower = lastError.message.toLowerCase();
+      if (lower.includes('bigint') || lower.includes('integer')) {
+        delete payload.id;
+        continue;
+      }
+      if (lower.includes('uuid')) {
+        payload.id =
+          typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : undefined;
+        if (!payload.id) delete payload.id;
+        continue;
+      }
+    }
+
+    break;
+  }
+
+  if (lastError || !insertedRow) {
+    return {
+      ok: false,
+      error: lastError?.message || 'Failed to create store in Supabase.',
+    };
+  }
+
+  const createdStore = mapRowToStore(insertedRow);
+
+  // Link all existing commercial posts of this user to the newly created store
+  const linkByAdType = await supabase
+    .from('posts')
+    .update({ store_id: createdStore.id, store_name: createdStore.name })
+    .eq('user_id', ownerId)
+    .eq('ad_type', 'commercial');
+
+  if (linkByAdType.error?.code === 'PGRST204') {
+    await supabase
+      .from('posts')
+      .update({ store_id: createdStore.id })
+      .eq('user_id', ownerId)
+      .eq('seller_type', 'commercial');
+  }
+
+  return { ok: true, store: createdStore };
+}
+
 export async function saveSupabaseStore(store: StoreProfile, authUserId?: string): Promise<boolean> {
   const { error } = await supabase.from('stores').upsert(
     {
       id: store.id,
       owner_id: authUserId || store.ownerId || null,
       name: store.name,
+      store_name: store.name,
+      phone: store.phoneNumber || store.ownerPhone || '',
       owner_phone: store.ownerPhone || '',
       description: store.description || '',
       logo_url: store.logoUrl || null,
@@ -708,6 +929,66 @@ export async function saveSupabaseStore(store: StoreProfile, authUserId?: string
 // 6. VISITOR LOGS TABLE (visitor_logs)
 // ==========================================
 
+const SESSION_VISITOR_KEY = 'souq_visitor_session_id';
+
+/**
+ * Inserts one visitor record per browser session (guarded via sessionStorage)
+ * and returns the total visitor count from Supabase `visitor_logs`.
+ */
+export async function trackSessionVisitor(): Promise<number | null> {
+  if (typeof window === 'undefined') return null;
+
+  let sessionId = '';
+  let shouldInsert = false;
+  try {
+    const existing = window.sessionStorage.getItem(SESSION_VISITOR_KEY);
+    if (existing) {
+      sessionId = existing;
+    } else {
+      sessionId =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `sess-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      window.sessionStorage.setItem(SESSION_VISITOR_KEY, sessionId);
+      shouldInsert = true;
+    }
+  } catch {
+    sessionId = `sess-${Date.now()}`;
+    shouldInsert = true;
+  }
+
+  if (shouldInsert) {
+    let payload: Record<string, any> = {
+      session_id: sessionId,
+      visitor_id: sessionId,
+      page: 'home',
+      city: 'الموصل',
+      device: window.innerWidth < 640 ? 'mobile' : 'desktop',
+    };
+
+    for (let i = 0; i < 6; i++) {
+      const { error } = await supabase.from('visitor_logs').insert([payload]);
+      if (!error) break;
+      if (error.code === 'PGRST204' && typeof error.message === 'string') {
+        const m = error.message.match(/Could not find the '([^']+)' column/i);
+        const col = m?.[1];
+        if (col && col in payload) {
+          delete payload[col];
+          continue;
+        }
+      }
+      break;
+    }
+  }
+
+  const { count, error: countErr } = await supabase
+    .from('visitor_logs')
+    .select('*', { count: 'exact', head: true });
+
+  if (countErr) return null;
+  return typeof count === 'number' ? count : null;
+}
+
 export async function logSupabaseVisitor(params: {
   visitorId: string;
   page: string;
@@ -716,6 +997,7 @@ export async function logSupabaseVisitor(params: {
   userId?: string;
 }): Promise<number | null> {
   const { error } = await supabase.from('visitor_logs').insert({
+    session_id: params.visitorId,
     visitor_id: params.visitorId,
     page: params.page || 'home',
     city: params.city || 'الموصل',
@@ -754,7 +1036,7 @@ export async function fetchSupabaseVisitors(): Promise<{
     totalVisitors: count || (data?.length ?? 0),
     recentVisitors: (data || []).map((row: any) => ({
       id: row.id,
-      visitorId: row.visitor_id,
+      visitorId: row.visitor_id || row.session_id,
       page: row.page,
       city: row.city,
       device: row.device,

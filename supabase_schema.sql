@@ -113,6 +113,10 @@ alter table public.posts add column if not exists seller_phone text not null def
 alter table public.posts add column if not exists seller_avatar text;
 alter table public.posts add column if not exists is_verified boolean not null default false;
 alter table public.posts add column if not exists views_count integer not null default 1;
+alter table public.posts add column if not exists ad_type text not null default 'personal';
+alter table public.posts add column if not exists latitude double precision;
+alter table public.posts add column if not exists longitude double precision;
+alter table public.posts add column if not exists maps_url text;
 alter table public.posts add column if not exists created_at timestamptz not null default now();
 
 -- 2C. Verified Stores Directory
@@ -144,16 +148,23 @@ create table if not exists public.stores (
   created_at timestamptz not null default now()
 );
 
+alter table public.stores add column if not exists owner_id uuid references auth.users(id) on delete set null;
+alter table public.stores add column if not exists store_name text;
+alter table public.stores add column if not exists phone text;
+
 -- 2D. Visitor Logs & Counter
 create table if not exists public.visitor_logs (
   id bigserial primary key,
-  visitor_id text not null,
+  session_id text,
+  visitor_id text not null default '',
   page text not null default 'home',
   city text not null default 'الموصل',
   device text not null default 'mobile',
   user_id uuid references auth.users(id) on delete set null,
   visited_at timestamptz not null default now()
 );
+
+alter table public.visitor_logs add column if not exists session_id text;
 
 -- Helpful indexes
 create index if not exists idx_listings_created_ts on public.listings (created_timestamp desc);

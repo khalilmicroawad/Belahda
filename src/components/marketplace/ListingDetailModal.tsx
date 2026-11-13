@@ -1,23 +1,20 @@
 import React, { useState } from 'react';
 import {
-  X,
   MapPin,
   MessageCircle,
   MessageSquare,
   Phone,
   Store,
   User,
-  ShieldCheck,
   Share2,
   Heart,
   ChevronRight,
   ChevronLeft,
   Calendar,
-  Eye,
   Check,
   Truck,
   ExternalLink,
-  Navigation
+  Image as ImageIcon
 } from 'lucide-react';
 import { Listing, UserAccount } from '../../types';
 
@@ -26,6 +23,7 @@ interface ListingDetailModalProps {
   currentUser: UserAccount | null;
   onClose: () => void;
   onOpenChat: (listing: Listing) => void;
+  onOpenStore?: (storeId: string) => void;
   onRequireAuth: (pendingAction: () => void, message?: string) => void;
   lang?: 'ar' | 'en';
 }
@@ -35,6 +33,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   currentUser,
   onClose,
   onOpenChat,
+  onOpenStore,
   onRequireAuth,
   lang = 'ar'
 }) => {
@@ -42,22 +41,22 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
   const [isFav, setIsFav] = useState(false);
-  const [showMapPreview, setShowMapPreview] = useState(true);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
 
   const handleWhatsApp = () => {
     const action = () => {
-      const phone = listing.contactOptions.whatsappNumber || listing.sellerPhone || '07700000000';
+      const phone = listing.contactOptions?.whatsappNumber || listing.sellerPhone || '07700000000';
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       const formatted = cleanPhone.startsWith('0') ? `964${cleanPhone.slice(1)}` : cleanPhone;
       const message = isAr
-        ? `السلام عليكم، أنا مهتم بإعلانك على سوق بلحظة (الموصل): "${listing.title}". هل لا يزال متوفراً؟`
+        ? `السلام عليكم، أنا مهتم بإعلانك على سوق بلحظة: "${listing.title}". هل لا يزال متوفراً؟`
         : `Hello, interested in your listing on Souq Belahdha: "${listing.title}".`;
       const encoded = encodeURIComponent(message);
       window.open(`https://wa.me/${formatted}?text=${encoded}`, '_blank');
     };
 
     if (!currentUser) {
-      onRequireAuth(action, isAr ? 'للتواصل عبر واتساب، يرجى كتابة اسمك ورقم هاتفك واختيار رمز سري' : 'Register to contact seller');
+      onRequireAuth(action, isAr ? 'للتواصل عبر واتساب، يرجى تسجيل الدخول أو إنشاء حساب' : 'Sign in to contact seller');
     } else {
       action();
     }
@@ -70,7 +69,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
     };
 
     if (!currentUser) {
-      onRequireAuth(action, isAr ? 'لبدء محادثة فورية، يرجى كتابة اسمك ورقم هاتفك واختيار رمز سري' : 'Register to chat');
+      onRequireAuth(action, isAr ? 'لبدء محادثة فورية، يرجى تسجيل الدخول أو إنشاء حساب' : 'Sign in to chat');
     } else {
       action();
     }
@@ -78,12 +77,12 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
   const handlePhone = () => {
     const action = () => {
-      const phone = listing.contactOptions.phoneNumber || listing.sellerPhone;
+      const phone = listing.contactOptions?.phoneNumber || listing.sellerPhone;
       if (phone) window.location.href = `tel:${phone}`;
     };
 
     if (!currentUser) {
-      onRequireAuth(action, isAr ? 'للاتصال الهاتفي، يرجى التسجيل برقمك واسمك' : 'Register to call');
+      onRequireAuth(action, isAr ? 'للاتصال الهاتفي، يرجى تسجيل الدخول أولاً' : 'Sign in to call');
     } else {
       action();
     }
@@ -93,7 +92,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
     if (navigator.share) {
       navigator.share({
         title: listing.title,
-        text: listing.description.slice(0, 60),
+        text: (listing.description || '').slice(0, 60),
         url: window.location.href
       }).catch(() => {});
     } else {
@@ -103,7 +102,6 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
     }
   };
 
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const safeMediaUrls = Array.isArray(listing.mediaUrls) ? listing.mediaUrls : [];
   const fullResPhotos = safeMediaUrls.length > 0
     ? safeMediaUrls
@@ -118,17 +116,28 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
     fullResPhotos[0] ||
     null;
 
+  const lat = listing.latitude ?? listing.storeLocation?.lat;
+  const lng = listing.longitude ?? listing.storeLocation?.lng;
+  const resolvedMapsUrl =
+    listing.mapsUrl ||
+    (typeof lat === 'number' && typeof lng === 'number'
+      ? `https://www.google.com/maps?q=${lat},${lng}`
+      : undefined);
+
+  const isCommercial = listing.adType === 'commercial' || listing.sellerType === 'commercial';
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-3 animate-fadeIn select-none text-xs">
+    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none">
       {isLightboxOpen && activePhotoSrc && (
         <div
           onClick={() => setIsLightboxOpen(false)}
-          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-3 animate-fadeIn cursor-zoom-out"
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4 cursor-zoom-out"
         >
           <button
             type="button"
             onClick={() => setIsLightboxOpen(false)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/15 hover:bg-white/25 text-white"
+            className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center"
+            aria-label={isAr ? 'إغلاق الصورة' : 'Close zoom'}
           >
             <ChevronRight className="w-5 h-5" />
           </button>
@@ -136,22 +145,26 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             src={activePhotoSrc}
             alt={listing.title || 'صورة المنتج'}
             referrerPolicy="no-referrer"
-            className="max-w-full max-h-[88vh] object-contain rounded-xl shadow-2xl"
+            className="max-w-full max-h-[88vh] object-contain rounded-2xl shadow-2xl"
           />
         </div>
       )}
-      <div className="bg-white w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+
+      <div className="bg-[#FFFDF9] w-full max-w-lg mx-auto sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80">
+        <div className="sm:hidden w-10 h-1 bg-amber-200/90 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
+
         {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-slate-100 bg-white sticky top-0 z-10">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/70 bg-[#FFFDF9]/95 sticky top-0 z-10">
           <button
             type="button"
             onClick={onClose}
-            className="p-1 -mx-1 text-slate-700 hover:bg-slate-100 rounded-lg min-w-[36px] min-h-[36px] flex items-center justify-center transition-colors"
+            className="min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FEF9E7] rounded-xl flex items-center justify-center transition-colors"
+            aria-label={isAr ? 'رجوع' : 'Back'}
           >
-            {isAr ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {isAr ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
           </button>
 
-          <span className="text-xs font-bold text-slate-800 truncate max-w-[200px]">
+          <span className="text-sm font-bold text-[#1E293B] truncate max-w-[210px]">
             {listing.title}
           </span>
 
@@ -159,26 +172,30 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleShare}
-              className="p-1.5 text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+              className="min-w-[40px] min-h-[40px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FEF9E7] flex items-center justify-center transition-colors"
+              aria-label={isAr ? 'مشاركة' : 'Share'}
             >
-              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
+              {copiedLink ? <Check className="w-4 h-4 text-[#0D9488]" /> : <Share2 className="w-4 h-4" />}
             </button>
             <button
               type="button"
               onClick={() => setIsFav(!isFav)}
-              className="p-1.5 text-slate-500 hover:text-red-500 rounded-lg hover:bg-slate-100"
+              className="min-w-[40px] min-h-[40px] text-[#64748B] hover:text-red-500 rounded-xl hover:bg-[#FEF9E7] flex items-center justify-center transition-colors"
+              aria-label={isAr ? 'حفظ' : 'Save'}
             >
-              <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
             </button>
           </div>
         </div>
 
         {/* Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-          {/* Main Visual (Full-Resolution Image from ImageKit) */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* Full-Resolution Image */}
           <div
             onClick={() => { if (activePhotoSrc) setIsLightboxOpen(true); }}
-            className={`relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 shadow-inner flex items-center justify-center ${activePhotoSrc ? 'cursor-zoom-in' : ''}`}
+            className={`relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#FEF9E7] border border-amber-200/70 flex items-center justify-center ${
+              activePhotoSrc ? 'cursor-zoom-in' : ''
+            }`}
           >
             {activePhotoSrc ? (
               <img
@@ -188,30 +205,23 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="text-slate-400 text-xs">{isAr ? 'لا توجد صورة' : 'No image available'}</span>
+              <div className="w-full h-full bg-gradient-to-br from-[#FEF9E7] to-amber-100/60 flex items-center justify-center">
+                <ImageIcon className="w-10 h-10 text-amber-300" />
+              </div>
             )}
 
-            <div className="absolute top-2.5 right-2.5 flex items-center gap-1">
-              <span className="bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded">
-                {listing.condition === 'new' ? 'جديد بالكرتون' : 'بحالة جيدة'}
-              </span>
-              {listing.deliveryAvailable && (
-                <span className="bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1">
-                  <Truck className="w-3 h-3" />
-                  <span>متوفر توصيل</span>
-                </span>
-              )}
-            </div>
-
-            {/* Pagination Dots */}
             {fullResPhotos.length > 1 && (
-              <div className="absolute bottom-2.5 inset-x-0 flex justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <div
+                className="absolute bottom-3 inset-x-0 flex justify-center gap-1.5"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {fullResPhotos.map((_, i) => (
                   <button
                     key={i}
+                    type="button"
                     onClick={() => setActivePhotoIdx(i)}
-                    className={`w-1.5 h-1.5 rounded-full transition-all ${
-                      activePhotoIdx === i ? 'bg-white w-4' : 'bg-white/50'
+                    className={`h-1.5 rounded-full transition-all ${
+                      activePhotoIdx === i ? 'bg-[#14B8A6] w-5' : 'bg-white/70 w-1.5'
                     }`}
                   />
                 ))}
@@ -219,24 +229,24 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             )}
           </div>
 
-          {/* Pricing & District */}
-          <div className="space-y-1.5">
-            <div className="flex items-start justify-between gap-2">
-              <h1 className="text-sm sm:text-base font-black text-slate-900 leading-snug">
+          {/* Title, Price & Clean Unboxed Metadata */}
+          <div className="space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <h1 className="text-base sm:text-lg font-extrabold text-[#1E293B] leading-snug">
                 {listing.title}
               </h1>
 
-              <div className="text-right shrink-0">
+              <div className="shrink-0">
                 {listing.hidePrice ? (
-                  <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                    السعر عند التواصل
+                  <span className="text-xs font-bold text-amber-800">
+                    {isAr ? 'السعر عند التواصل' : 'Contact for price'}
                   </span>
                 ) : (
-                  <div className="flex items-baseline gap-1 text-emerald-800">
-                    <span className="text-xl font-black font-mono tabular-nums">
+                  <div className="flex items-baseline gap-1 text-[#0F766E]">
+                    <span className="text-xl font-extrabold tabular-nums">
                       {Number(listing.price ?? 0).toLocaleString()}
                     </span>
-                    <span className="text-[10px] font-bold">
+                    <span className="text-xs font-bold">
                       {listing.currency || 'د.ع'}
                     </span>
                   </div>
@@ -244,123 +254,121 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Location & Time in Mosul */}
-            <div className="flex items-center gap-2 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1 text-emerald-700 font-semibold">
-                <MapPin className="w-3.5 h-3.5" />
-                {listing.district || 'الموصل'} · الموصل
+            <div className="flex items-center flex-wrap gap-2 text-xs text-[#64748B]">
+              <span className="inline-flex items-center gap-1 text-[#0F766E] font-semibold">
+                <MapPin className="w-3.5 h-3.5 text-[#0D9488]" />
+                {listing.district || 'الموصل'}
               </span>
-              <span>·</span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-[#64748B]/80" />
                 {listing.createdAt}
               </span>
+              <span aria-hidden="true">·</span>
+              <span>{listing.condition === 'new' ? 'جديد' : 'مستعمل'}</span>
+              {listing.deliveryAvailable && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1 text-[#1E293B] font-medium">
+                    <Truck className="w-3.5 h-3.5 text-[#0D9488]" />
+                    متوفر توصيل
+                  </span>
+                </>
+              )}
             </div>
-          </div>
-
-          {/* Delivery Details Card */}
-          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Truck className={`w-4 h-4 ${listing.deliveryAvailable ? 'text-emerald-600' : 'text-slate-400'}`} />
-              <div>
-                <span className="font-bold text-slate-800 block">
-                  {listing.deliveryAvailable ? 'خدمة التوصيل داخل الموصل متوفرة 🛵' : 'استلام مباشر من موقع البائع 📍'}
-                </span>
-                {listing.deliveryNotes && (
-                  <span className="text-[10px] text-slate-500">{listing.deliveryNotes}</span>
-                )}
-              </div>
-            </div>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${listing.deliveryAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-              {listing.deliveryAvailable ? 'توصيل' : 'استلام'}
-            </span>
           </div>
 
           {/* Description */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
-            <h2 className="text-[11px] font-bold text-slate-800">
-              تفاصيل ومواصفات السلعة:
+          <div className="p-4 rounded-2xl bg-[#FEF9E7]/65 border border-amber-200/70 space-y-1.5">
+            <h2 className="text-xs font-bold text-[#1E293B]">
+              {isAr ? 'تفاصيل الإعلان' : 'Details'}
             </h2>
-            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-line">
+            <p className="text-sm text-[#1E293B]/90 leading-relaxed whitespace-pre-line">
               {listing.description || (isAr ? 'لم تتم إضافة تفاصيل إضافية.' : 'No additional description.')}
             </p>
           </div>
 
-          {/* Seller Profile in Mosul */}
-          <div className="p-3 rounded-2xl border border-slate-200 space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <img
-                  src={listing.sellerAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'}
-                  alt={listing.sellerName}
-                  referrerPolicy="no-referrer"
-                  className="w-9 h-9 rounded-full object-cover border border-slate-200"
-                />
-                <div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-bold text-slate-900">
-                      {listing.sellerType === 'commercial' ? listing.storeName : listing.sellerName}
+          {/* Seller / Store & Location Card */}
+          <div className="p-4 rounded-2xl bg-white border border-amber-200/80 shadow-[0_2px_10px_rgba(245,158,11,0.05)] space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 text-[#0D9488] flex items-center justify-center overflow-hidden shrink-0">
+                  {listing.sellerAvatar ? (
+                    <img
+                      src={listing.sellerAvatar}
+                      alt={listing.sellerName}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : isCommercial ? (
+                    <Store className="w-5 h-5" />
+                  ) : (
+                    <User className="w-5 h-5" />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-bold text-[#1E293B] truncate">
+                      {isCommercial && listing.storeName
+                        ? listing.storeName
+                        : listing.sellerName || (isAr ? 'بائع' : 'Seller')}
                     </span>
-                    {listing.sellerType === 'commercial' && (
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    {listing.storeId && onOpenStore && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenStore(listing.storeId!);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/80 hover:bg-amber-200/70 text-amber-900 border border-amber-200/80 text-[11px] font-bold transition-colors"
+                      >
+                        <Store className="w-3 h-3" />
+                        <span>{isAr ? 'زيارة المتجر' : 'View Store'}</span>
+                      </button>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-500 flex items-center gap-1">
-                    {listing.sellerType === 'commercial' ? (
-                      <span className="text-emerald-800 font-bold bg-emerald-100/80 px-1.5 py-0.2 rounded border border-emerald-300">
-                        مالك متجر موثق
-                      </span>
-                    ) : (
-                      'بائع فردي مسجل'
-                    )}
-                  </span>
+                  <p className="text-xs text-[#64748B]">
+                    {isCommercial
+                      ? (isAr ? 'إعلان تجاري' : 'Commercial Ad')
+                      : (isAr ? 'إعلان شخصي' : 'Personal Ad')}
+                  </p>
                 </div>
               </div>
 
-              <span className="text-[10px] font-mono text-slate-600 font-bold bg-slate-100 px-2 py-0.5 rounded">
-                {listing.sellerPhone}
-              </span>
+              {listing.sellerPhone && (
+                <a
+                  href={`tel:${listing.sellerPhone}`}
+                  dir="ltr"
+                  className="text-xs font-bold tabular-nums text-[#1E293B] bg-[#FEF9E7] hover:bg-amber-100/80 border border-amber-200/80 px-3 py-2 rounded-xl transition-colors shrink-0"
+                >
+                  {listing.sellerPhone}
+                </a>
+              )}
             </div>
 
-            {/* Google Maps Location for both Commercial and Personal Sellers */}
-            {listing.storeLocation && typeof listing.storeLocation.lat === 'number' && typeof listing.storeLocation.lng === 'number' && (
-              <div className="p-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[11px] space-y-2">
-                <div className="flex items-start justify-between gap-1.5">
-                  <div className="flex items-start gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
-                    <div>
-                      <span className="font-bold text-slate-900 block leading-tight">
-                        {listing.storeLocation.addressName || `${listing.district} · الموصل`}
-                      </span>
-                      <span className="text-[10px] text-slate-500">
-                        {listing.sellerType === 'commercial' ? 'موقع المتجر على Google Maps' : 'موقع البائع / نقطة التسليم'}
-                      </span>
-                    </div>
-                  </div>
+            {/* Clean "Open in Google Maps" Button + Map Preview */}
+            {resolvedMapsUrl && (
+              <div className="space-y-2.5 pt-1">
+                <a
+                  href={resolvedMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-teal-50 hover:bg-teal-100/80 text-[#0F766E] border border-teal-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                >
+                  <MapPin className="w-4 h-4 text-[#0D9488]" />
+                  <span>{isAr ? 'فتح في خرائط Google' : 'Open in Google Maps'}</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
 
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${listing.storeLocation.lat},${listing.storeLocation.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 font-bold px-2 py-1 rounded-lg border border-emerald-200 flex items-center gap-1 shrink-0"
-                  >
-                    <span>فتح بالخرائط</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </div>
-
-                {/* Embedded Google Maps viewer inside application */}
-                {showMapPreview && (
-                  <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 shadow-inner bg-slate-100">
+                {typeof lat === 'number' && typeof lng === 'number' && (
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-amber-200/80 bg-[#FEF9E7]">
                     <iframe
-                      title="Item Location in Mosul"
-                      src={`https://maps.google.com/maps?q=${listing.storeLocation.lat},${listing.storeLocation.lng}&hl=ar&z=15&output=embed`}
+                      title="Post Location in Google Maps"
+                      src={`https://maps.google.com/maps?q=${lat},${lng}&hl=ar&z=15&output=embed`}
                       className="w-full h-full border-0 select-none"
                       loading="lazy"
                     />
-                    <div className="absolute bottom-1 right-1 bg-white/90 backdrop-blur-xs text-[9px] font-mono text-slate-700 px-1.5 py-0.5 rounded shadow">
-                      {listing.storeLocation.lat.toFixed(3)}, {listing.storeLocation.lng.toFixed(3)}
-                    </div>
                   </div>
                 )}
               </div>
@@ -369,34 +377,34 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         </div>
 
         {/* Sticky Bottom Actions */}
-        <div className="p-3 bg-white border-t border-slate-200 grid grid-cols-2 gap-2">
+        <div className="p-4 bg-[#FFFDF9] border-t border-amber-200/70 grid grid-cols-2 gap-2.5 pb-safe">
           {listing.contactOptions?.whatsapp ? (
             <button
               type="button"
               onClick={handleWhatsApp}
-              className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5"
+              className="min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
             >
-              <MessageCircle className="w-4 h-4 fill-white" />
-              <span>واتساب مباشر</span>
+              <MessageCircle className="w-4 h-4" />
+              <span>{isAr ? 'واتساب مباشر' : 'WhatsApp'}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handlePhone}
-              className="h-10 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+              className="min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
             >
               <Phone className="w-4 h-4" />
-              <span>اتصال هاتفي</span>
+              <span>{isAr ? 'اتصال هاتفي' : 'Call Seller'}</span>
             </button>
           )}
 
           <button
             type="button"
             onClick={handleChat}
-            className="h-10 rounded-xl bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+            className="min-h-[46px] rounded-xl bg-[#1E293B] hover:bg-slate-900 active:scale-[0.98] text-white text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
           >
             <MessageSquare className="w-4 h-4" />
-            <span>دردشة فورية</span>
+            <span>{isAr ? 'دردشة فورية' : 'Direct Chat'}</span>
           </button>
         </div>
       </div>

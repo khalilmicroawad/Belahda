@@ -153,46 +153,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 select-none animate-fadeIn">
-      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none">
+      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80">
         {/* Header */}
-        <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+        <div className="p-4 border-b border-amber-200/70 flex items-center justify-between bg-[#FEF9E7]/80">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center shadow-xs">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-xs font-bold text-slate-900 leading-none">
+              <h2 className="text-sm font-bold text-[#1E293B] leading-none">
                 {mode === 'signup'
                   ? (isAr ? 'إنشاء حساب جديد' : 'Create Account')
                   : (isAr ? 'تسجيل الدخول' : 'Sign In')}
               </h2>
-              <span className="text-[10px] text-slate-500">
-                {isAr ? 'سوق بلحظة · حساب سحابي مؤمّن' : 'Souq Belahdha · Cloud Auth'}
+              <span className="text-[11px] text-[#64748B]">
+                {isAr ? 'سوق بلحظة' : 'Souq Belahdha'}
               </span>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+            className="min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 flex items-center justify-center transition-colors"
+            aria-label={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Auth Mode Switcher */}
-        <div className="grid grid-cols-2 gap-1 p-2 bg-slate-100 border-b border-slate-200">
+        <div className="grid grid-cols-2 gap-1 p-2 bg-[#FEF9E7] border-b border-amber-200/80">
           <button
             type="button"
             onClick={() => {
               setMode('signup');
               setError(null);
             }}
-            className={`h-8 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
+            className={`min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
               mode === 'signup'
-                ? 'bg-white text-emerald-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-[#0F766E] shadow-xs'
+                : 'text-[#64748B] hover:text-[#1E293B]'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -204,10 +205,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('login');
               setError(null);
             }}
-            className={`h-8 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all ${
+            className={`min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
               mode === 'login'
-                ? 'bg-white text-emerald-700 shadow-2xs'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-white text-[#0F766E] shadow-xs'
+                : 'text-[#64748B] hover:text-[#1E293B]'
             }`}
           >
             <LogIn className="w-3.5 h-3.5" />
@@ -216,32 +217,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-2.5">
+        <form onSubmit={handleSubmit} className="p-4 space-y-3">
           {purposeMessage && (
-            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] leading-relaxed">
+            <div className="p-3 rounded-xl bg-[#FEF9E7] border border-amber-200 text-[#1E293B] text-xs leading-relaxed">
               {purposeMessage}
             </div>
           )}
 
           {infoMsg && (
-            <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-[11px] flex items-start gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-[#0F766E] text-xs flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#0D9488] shrink-0 mt-0.5" />
               <span>{infoMsg}</span>
             </div>
           )}
 
           {error && (
-            <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-[11px] flex items-start gap-1.5 animate-shake">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
             </div>
           )}
 
           {mode === 'signup' && (
             <>
-              {/* Name Field */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                <label className="text-xs font-bold text-[#1E293B] block mb-1">
                   {isAr ? 'الاسم الكامل *' : 'Full Name *'}
                 </label>
                 <div className="relative">
@@ -251,16 +251,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={isAr ? 'مثال: أحمد الموصلي' : 'e.g. Ahmed'}
-                    className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                    className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
                   />
-                  <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <User className="w-3.5 h-3.5 text-[#64748B]/70 absolute left-3 top-3 pointer-events-none" />
                 </div>
               </div>
 
-              {/* Phone Field */}
               <div>
-                <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                  {isAr ? 'رقم الهاتف (عراقي) *' : 'Phone Number (Iraq) *'}
+                <label className="text-xs font-bold text-[#1E293B] block mb-1">
+                  {isAr ? 'رقم الهاتف *' : 'Phone Number *'}
                 </label>
                 <div className="relative">
                   <input
@@ -269,17 +268,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="0770XXXXXXX"
-                    className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono tabular-nums text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-left"
+                    className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
                   />
-                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                  <Phone className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
                 </div>
               </div>
             </>
           )}
 
-          {/* Email Field */}
           <div>
-            <label className="text-[11px] font-bold text-slate-700 block mb-1">
+            <label className="text-xs font-bold text-[#1E293B] block mb-1">
               {isAr ? 'البريد الإلكتروني *' : 'Email Address *'}
             </label>
             <div className="relative">
@@ -289,19 +287,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-left font-mono"
+                className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
               />
-              <Mail className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              <Mail className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
             </div>
           </div>
 
-          {/* Password */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] font-bold text-slate-700">
+              <label className="text-xs font-bold text-[#1E293B]">
                 {isAr ? 'كلمة المرور *' : 'Password *'}
               </label>
-              <span className="text-[10px] text-slate-400 font-mono">
+              <span className="text-[11px] text-[#64748B] tabular-nums">
                 {password.length}/6+
               </span>
             </div>
@@ -313,16 +310,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-9 px-3 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white text-left font-mono"
+                className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
               />
-              <Lock className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+              <Lock className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
             </div>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 active:scale-98 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-1.5 mt-2"
+            className="w-full min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 mt-2"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
