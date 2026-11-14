@@ -4,9 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "studio.ai.souqinstant_p2p_b2c_marketplace.twa",
-      "sha256_cert_fingerprints": [
-        "C5:0E:FC:CC:B9:1F:7D:FC:69:BC:10:57:CE:70:19:BA:EE:42:22:30:9F:8D:DC:8B:98:C6:03:55:1E:A1:34:D3"
-      ]
+      "sha256_cert_fingerprints": ["C5:0E:FC:CC:B9:1F:7D:FC:69:BC:10:57:CE:70:19:BA:EE:42:22:30:9F:8D:DC:8B:98:C6:03:55:1E:A1:34:D3"]
     }
   }
 ]
