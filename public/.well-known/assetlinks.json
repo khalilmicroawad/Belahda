@@ -3,8 +3,8 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "studio.ai.souqinstant_p2p_b2c_marketplace.twa",
-      "sha256_cert_fingerprints": ["C5:0E:FC:CC:B9:1F:7D:FC:69:BC:10:57:CE:70:19:BA:EE:42:22:30:9F:8D:DC:8B:98:C6:03:55:1E:A1:34:D3"]
+      "package_name": "dev.pages.belahda.twa",
+      "sha256_cert_fingerprints": ["59:AB:02:29:CC:0A:E5:B2:77:5A:25:09:14:C3:F8:D8:45:04:26:E9:A2:5C:98:10:AC:F3:DB:CA:A5:86:60:C6"]
     }
   }
 ]
