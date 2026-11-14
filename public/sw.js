@@ -48,9 +48,10 @@ function shouldBypassCache(request, url) {
   // Never intercept cross-origin requests (Supabase, ImageKit, Google Maps, Fonts, etc.)
   if (url.origin !== self.location.origin) return true;
 
-  // Never intercept backend API routes or direct APK binary downloads
+  // Never intercept backend API routes, Digital Asset Links, or direct APK binary downloads
   if (
     url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/.well-known/') ||
     url.pathname.endsWith('.apk')
   ) {
     return true;

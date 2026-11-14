@@ -238,8 +238,18 @@ async function startServer() {
     res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
   });
 
-  // 4. Vite Middlewares in Dev / Static files in Prod
+  // Direct Digital Asset Links handler (never redirect /.well-known/assetlinks.json to index.html)
   const isProd = process.env.NODE_ENV === 'production';
+  app.get('/.well-known/assetlinks.json', (_req, res) => {
+    const assetLinksPath = isProd
+      ? path.join(__dirname, 'dist', '.well-known', 'assetlinks.json')
+      : path.join(__dirname, 'public', '.well-known', 'assetlinks.json');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.sendFile(assetLinksPath);
+  });
+
+  // 4. Vite Middlewares in Dev / Static files in Prod
   if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
@@ -250,6 +260,7 @@ async function startServer() {
   } else {
     app.use(
       express.static(path.join(__dirname, 'dist'), {
+        dotfiles: 'allow',
         setHeaders: (res, filePath) => {
           if (filePath.endsWith('sw.js')) {
             res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
@@ -257,6 +268,9 @@ async function startServer() {
             res.setHeader('Service-Worker-Allowed', '/');
           } else if (filePath.endsWith('manifest.json')) {
             res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+          } else if (filePath.endsWith('assetlinks.json')) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.setHeader('Cache-Control', 'public, max-age=3600');
           }
         },
