@@ -12,9 +12,11 @@ import {
   Crosshair,
   ExternalLink,
   Link2,
-  Send
+  Send,
+  Handshake,
+  Truck
 } from 'lucide-react';
-import { Listing, CategoryId, SellerType, StoreProfile, UserAccount } from '../../types';
+import { Listing, CategoryId, SellerType, DeliveryMethod, StoreProfile, UserAccount } from '../../types';
 import { CATEGORIES } from '../../data/categories';
 import { performDualProductImageUpload } from '../../lib/mediaUpload';
 import { saveUserAccount } from '../../data/mockListings';
@@ -60,6 +62,8 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   const [thumbnailUrl, setThumbnailUrl] = useState<string | undefined>(undefined);
   const [fullImageUrl, setFullImageUrl] = useState<string | undefined>(undefined);
   const [adType, setAdType] = useState<SellerType>('personal');
+  const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod | null>(null);
+  const [coverageArea, setCoverageArea] = useState<string>('');
   const [title, setTitle] = useState<string>('');
   const [category, setCategory] = useState<CategoryId>('electronics');
   const [price, setPrice] = useState<string>('');
@@ -67,7 +71,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   const [district, setDistrict] = useState<string>('حي الزهور');
   const [description, setDescription] = useState<string>('');
 
-  // Google Maps location state
+  // Google Maps location state (hidden for Representative ads)
   const [latitude, setLatitude] = useState<number | undefined>(undefined);
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [mapsUrl, setMapsUrl] = useState<string>('');
@@ -209,6 +213,15 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
       return;
     }
 
+    if (!deliveryMethod) {
+      setValidationError(
+        isAr
+          ? 'يرجى اختيار طريقة التسليم (استلام موقعي أو توصيل)'
+          : 'Please select a delivery method (Pickup or Delivery)'
+      );
+      return;
+    }
+
     setIsPublishing(true);
 
     try {
@@ -243,11 +256,13 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
 
       const resolvedFull = fullImageUrl || thumbnailUrl || '';
       const resolvedThumb = thumbnailUrl || fullImageUrl || '';
-      const cleanMapsUrl = mapsUrl.trim()
-        ? mapsUrl.trim()
-        : latitude !== undefined && longitude !== undefined
-        ? `https://www.google.com/maps?q=${latitude},${longitude}`
-        : undefined;
+      const isRep = adType === 'representative';
+      const cleanMapsUrl =
+        !isRep && mapsUrl.trim()
+          ? mapsUrl.trim()
+          : !isRep && latitude !== undefined && longitude !== undefined
+          ? `https://www.google.com/maps?q=${latitude},${longitude}`
+          : undefined;
 
       const resolvedCity = district === 'أخرى / خارج الموصل' ? 'خارج الموصل' : 'الموصل';
       const resolvedDistrict = district.trim() || 'حي الزهور';
@@ -270,11 +285,11 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         sellerPhone: sellerPhone.trim(),
         city: resolvedCity,
         district: resolvedDistrict,
-        latitude,
-        longitude,
+        latitude: isRep ? undefined : latitude,
+        longitude: isRep ? undefined : longitude,
         mapsUrl: cleanMapsUrl,
         storeLocation:
-          latitude !== undefined && longitude !== undefined
+          !isRep && latitude !== undefined && longitude !== undefined
             ? {
                 lat: latitude,
                 lng: longitude,
@@ -283,7 +298,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                 district: resolvedDistrict,
               }
             : undefined,
-        deliveryAvailable: false,
+        deliveryAvailable: deliveryMethod === 'delivery',
+        deliveryMethod: deliveryMethod || 'pickup',
+        coverageArea: isRep ? coverageArea.trim() || undefined : undefined,
+        deliveryNotes: isRep ? coverageArea.trim() || undefined : undefined,
         mediaUrls: resolvedFull ? [resolvedFull] : [],
         thumbnailUrl: resolvedThumb || undefined,
         fullImageUrl: resolvedFull || undefined,
@@ -433,46 +451,63 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           />
         </div>
 
-        {/* Ad Type: Personal vs Commercial Sliding Segmented Toggle */}
+        {/* Ad Type: 3-Way Sliding Segmented Toggle (Personal / Commercial / Representative) */}
         <div>
           <label className="block text-xs font-bold text-[#1E293B] mb-2">
             {isAr ? 'نوع الإعلان *' : 'Ad Type *'}
           </label>
-          <div className="relative grid grid-cols-2 p-1 rounded-2xl bg-[#FFE4C4] border border-[#E8C5A0]">
+          <div className="relative grid grid-cols-3 p-1 rounded-2xl bg-[#FFE4C4] border border-[#E8C5A0]">
             <span
               aria-hidden="true"
-              className={`absolute top-1 bottom-1 start-1 w-[calc(50%-0.25rem)] rounded-xl bg-[#0D9488] shadow-xs transition-transform duration-200 ease-out ${
+              className={`absolute top-1 bottom-1 start-1 w-[calc((100%-0.5rem)/3)] rounded-xl bg-[#0D9488] shadow-xs transition-transform duration-200 ease-out ${
                 adType === 'commercial'
                   ? isAr
                     ? '-translate-x-full'
                     : 'translate-x-full'
+                  : adType === 'representative'
+                  ? isAr
+                    ? '-translate-x-[200%]'
+                    : 'translate-x-[200%]'
                   : 'translate-x-0'
               }`}
             />
             <button
               type="button"
               onClick={() => setAdType('personal')}
-              className={`group relative z-10 min-h-[42px] px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors duration-200 active:scale-95 ${
+              className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
                 adType === 'personal'
                   ? 'text-white'
                   : 'text-[#1E293B] hover:text-[#0F766E]'
               }`}
             >
-              <User className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+              <User className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span>{isAr ? 'شخصي' : 'Personal'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setAdType('commercial')}
-              className={`group relative z-10 min-h-[42px] px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors duration-200 active:scale-95 ${
+              className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
                 adType === 'commercial'
                   ? 'text-white'
                   : 'text-[#1E293B] hover:text-[#0F766E]'
               }`}
             >
-              <Store className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
+              <Store className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
               <span>{isAr ? 'تجاري' : 'Commercial'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setAdType('representative')}
+              className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
+                adType === 'representative'
+                  ? 'text-white'
+                  : 'text-[#1E293B] hover:text-[#0F766E]'
+              }`}
+            >
+              <Handshake className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+              <span>{isAr ? 'مندوب' : 'Representative'}</span>
             </button>
           </div>
           {adType === 'commercial' && ownedStore && (
@@ -480,6 +515,16 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               {isAr
                 ? `سيُربط الإعلان تلقائياً بمتجرك: ${ownedStore.name}`
                 : `Linked automatically to your store: ${ownedStore.name}`}
+            </p>
+          )}
+          {adType === 'representative' && (
+            <p className="mt-2 text-xs text-[#0F766E] font-semibold animate-fade-in flex items-center gap-1.5">
+              <Handshake className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                {isAr
+                  ? 'وضع المندوب: تنسيق وربط مباشر بين البائع والمشتري بدون عنوان محل ثابت.'
+                  : 'Representative mode: direct coordination without a fixed shop address.'}
+              </span>
             </p>
           )}
         </div>
@@ -561,95 +606,172 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           </div>
         </div>
 
-        {/* Google Maps Location Picker */}
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <label className="block text-xs font-bold text-[#1E293B]">
-              {isAr ? 'الموقع على خرائط Google (اختياري)' : 'Google Maps Location (Optional)'}
-            </label>
-            {!mapsUrl && (
+        {/* Required Handover / Delivery Option for ALL Ad Types */}
+        <div>
+          <label className="block text-xs font-bold text-[#1E293B] mb-2">
+            {isAr ? 'طريقة التسليم *' : 'Delivery / Handover Method *'}
+          </label>
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryMethod('pickup');
+                setValidationError(null);
+              }}
+              className={`group min-h-[46px] px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                deliveryMethod === 'pickup'
+                  ? 'bg-[#0D9488] text-white border-[#0D9488] shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
+                  : 'bg-[#FFE4C4]/45 hover:bg-[#FFE4C4]/80 text-[#1E293B] border-[#E8C5A0]'
+              }`}
+            >
+              <MapPin
+                className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+                  deliveryMethod === 'pickup' ? 'text-white' : 'text-[#0D9488]'
+                }`}
+              />
+              <span>{isAr ? 'استلام موقعي' : 'On-site Pickup'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setDeliveryMethod('delivery');
+                setValidationError(null);
+              }}
+              className={`group min-h-[46px] px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                deliveryMethod === 'delivery'
+                  ? 'bg-[#0D9488] text-white border-[#0D9488] shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
+                  : 'bg-[#FFE4C4]/45 hover:bg-[#FFE4C4]/80 text-[#1E293B] border-[#E8C5A0]'
+              }`}
+            >
+              <Truck
+                className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
+                  deliveryMethod === 'delivery' ? 'text-white' : 'text-[#0D9488]'
+                }`}
+              />
+              <span>{isAr ? 'توصيل' : 'Delivery'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Location Section: Coverage Note for Representative OR Google Maps Picker for Personal/Commercial */}
+        {adType === 'representative' ? (
+          <div className="p-3.5 rounded-2xl bg-[#FFE4C4]/45 border border-[#E8C5A0] space-y-2.5 animate-fade-in">
+            <div className="flex items-start gap-2 text-xs text-[#1E293B]">
+              <Handshake className="w-4 h-4 text-[#0D9488] shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">
+                  {isAr ? 'نطاق التوصيل والتنسيق بين البائع والمشتري' : 'Delivery & Coordination Coverage'}
+                </p>
+                <p className="text-[11px] text-[#64748B] mt-0.5">
+                  {isAr
+                    ? 'لا يتطلب إعلان المندوب عنوان محل ثابت على الخريطة.'
+                    : 'Representative ads do not require a fixed shop address on the map.'}
+                </p>
+              </div>
+            </div>
+            <input
+              type="text"
+              value={coverageArea}
+              onChange={(e) => setCoverageArea(e.target.value)}
+              placeholder={
+                isAr
+                  ? 'نطاق التغطية (اختياري) مثال: الساحل الأيمن والأيسر'
+                  : 'Optional coverage area (e.g. Left & Right Coast)'
+              }
+              className="w-full h-10 px-3.5 rounded-xl bg-white border border-[#E8C5A0] text-xs text-[#1E293B] placeholder:text-[#64748B]/70 focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+            />
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold text-[#1E293B]">
+                {isAr ? 'الموقع على خرائط Google (اختياري)' : 'Google Maps Location (Optional)'}
+              </label>
+              {!mapsUrl && (
+                <button
+                  type="button"
+                  onClick={() => setShowPasteLink((v) => !v)}
+                  className="group inline-flex items-center gap-1 text-xs font-semibold text-[#0F766E] hover:underline active:scale-95 transition-transform"
+                >
+                  <Link2 className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
+                  <span>
+                    {showPasteLink
+                      ? (isAr ? 'إخفاء الرابط' : 'Hide link')
+                      : (isAr ? 'أو لصق رابط خرائط' : 'Or paste link')}
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {mapsUrl ? (
+              <div className="p-3 rounded-xl bg-teal-50/90 border border-teal-200 flex items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <MapPin className="w-4 h-4 text-[#0D9488] shrink-0" />
+                  <div className="min-w-0">
+                    <span className="font-bold text-[#0F766E] block truncate tabular-nums">
+                      {latitude !== undefined && longitude !== undefined
+                        ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+                        : isAr
+                        ? 'تم ربط رابط خرائط Google'
+                        : 'Google Maps link attached'}
+                    </span>
+                    <a
+                      href={mapsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-semibold text-[#0D9488] hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>{isAr ? 'معاينة على الخريطة' : 'Preview pin'}</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearLocation}
+                  className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-red-600 rounded-lg flex items-center justify-center transition-colors"
+                  aria-label={isAr ? 'إزالة الموقع' : 'Clear location'}
+                >
+                  <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowPasteLink((v) => !v)}
-                className="group inline-flex items-center gap-1 text-xs font-semibold text-[#0F766E] hover:underline active:scale-95 transition-transform"
+                disabled={isLocating}
+                onClick={handleDetectGps}
+                className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FFE4C4]/75 hover:bg-[#FFE4C4] active:scale-[0.98] border border-[#E8C5A0] text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               >
-                <Link2 className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
+                {isLocating ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-[#0D9488]" />
+                ) : (
+                  <Crosshair className="w-4 h-4 text-[#0D9488] transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
+                )}
                 <span>
-                  {showPasteLink
-                    ? (isAr ? 'إخفاء الرابط' : 'Hide link')
-                    : (isAr ? 'أو لصق رابط خرائط' : 'Or paste link')}
+                  {isLocating
+                    ? (isAr ? 'جاري تحديد الموقع...' : 'Detecting location...')
+                    : (isAr ? 'تحديد الموقع على خرائط Google' : 'Select Location on Google Maps')}
                 </span>
               </button>
             )}
+
+            {showPasteLink && !mapsUrl && (
+              <input
+                type="url"
+                value={mapsUrl}
+                onChange={(e) => handleMapsUrlChange(e.target.value)}
+                placeholder="https://www.google.com/maps?q=36.3489,43.1577"
+                dir="ltr"
+                className="w-full h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
+              />
+            )}
+
+            {locationError && (
+              <p className="text-xs text-[#7C4A21]">{locationError}</p>
+            )}
           </div>
-
-          {mapsUrl ? (
-            <div className="p-3 rounded-xl bg-teal-50/90 border border-teal-200 flex items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <MapPin className="w-4 h-4 text-[#0D9488] shrink-0" />
-                <div className="min-w-0">
-                  <span className="font-bold text-[#0F766E] block truncate tabular-nums">
-                    {latitude !== undefined && longitude !== undefined
-                      ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
-                      : isAr
-                      ? 'تم ربط رابط خرائط Google'
-                      : 'Google Maps link attached'}
-                  </span>
-                  <a
-                    href={mapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] font-semibold text-[#0D9488] hover:underline inline-flex items-center gap-1"
-                  >
-                    <span>{isAr ? 'معاينة على الخريطة' : 'Preview pin'}</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={clearLocation}
-                className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-red-600 rounded-lg flex items-center justify-center transition-colors"
-                aria-label={isAr ? 'إزالة الموقع' : 'Clear location'}
-              >
-                <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              disabled={isLocating}
-              onClick={handleDetectGps}
-              className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FFE4C4]/75 hover:bg-[#FFE4C4] active:scale-[0.98] border border-[#E8C5A0] text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
-            >
-              {isLocating ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#0D9488]" />
-              ) : (
-                <Crosshair className="w-4 h-4 text-[#0D9488] transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
-              )}
-              <span>
-                {isLocating
-                  ? (isAr ? 'جاري تحديد الموقع...' : 'Detecting location...')
-                  : (isAr ? 'تحديد الموقع على خرائط Google' : 'Select Location on Google Maps')}
-              </span>
-            </button>
-          )}
-
-          {showPasteLink && !mapsUrl && (
-            <input
-              type="url"
-              value={mapsUrl}
-              onChange={(e) => handleMapsUrlChange(e.target.value)}
-              placeholder="https://www.google.com/maps?q=36.3489,43.1577"
-              dir="ltr"
-              className="w-full h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
-            />
-          )}
-
-          {locationError && (
-            <p className="text-xs text-[#7C4A21]">{locationError}</p>
-          )}
-        </div>
+        )}
 
         {/* 6. Optional Short Description (2-row textarea) */}
         <div>

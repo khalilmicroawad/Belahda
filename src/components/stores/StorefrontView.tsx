@@ -17,7 +17,8 @@ import {
   ArrowDownNarrowWide,
   CheckCircle2,
   Package,
-  PackageX
+  PackageX,
+  Truck
 } from 'lucide-react';
 import { StoreProfile, Listing } from '../../types';
 import { fetchPostsByStoreId } from '../../lib/supabase';
@@ -482,6 +483,9 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             const locationText = item.district || item.city;
             const isFav = favoriteIds.includes(item.id);
             const isPopping = poppedCardId === item.id;
+            const isDelivery =
+              item.deliveryMethod === 'delivery' ||
+              (!item.deliveryMethod && item.deliveryAvailable);
 
             return (
               <div
@@ -548,12 +552,33 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                         : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
                     </p>
 
-                    {locationText && (
-                      <p className="text-[11px] text-[#64748B] flex items-center gap-1 truncate">
-                        <MapPin className="w-3.5 h-3.5 text-[#0D9488]/70 shrink-0" />
-                        <span className="truncate">{locationText}</span>
-                      </p>
-                    )}
+                    <div className="pt-1.5 border-t border-[#FFE4C4] flex items-center justify-between gap-1.5 flex-wrap text-[10px] sm:text-[11px]">
+                      {locationText && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFE4C4] text-[#0F766E] border border-[#E8C5A0] font-semibold truncate min-w-0 max-w-full">
+                          <MapPin className="w-3 h-3 text-[#0D9488] shrink-0" />
+                          <span className="truncate">{locationText}</span>
+                        </span>
+                      )}
+
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold shrink-0 ${
+                          isDelivery
+                            ? 'bg-teal-50 text-[#0F766E] border border-teal-200/80'
+                            : 'bg-[#FFE4C4]/70 text-[#7C4A21] border border-[#E8C5A0]'
+                        }`}
+                      >
+                        {isDelivery ? (
+                          <Truck className="w-3 h-3 text-[#0D9488] shrink-0" />
+                        ) : (
+                          <MapPin className="w-3 h-3 text-[#7C4A21] shrink-0" />
+                        )}
+                        <span>
+                          {isDelivery
+                            ? (isAr ? 'توصيل' : 'Delivery')
+                            : (isAr ? 'استلام موقعي' : 'Pickup')}
+                        </span>
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

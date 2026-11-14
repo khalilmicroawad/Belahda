@@ -1,4 +1,6 @@
-import { Listing, StoreProfile } from '../types';
+import { Listing, RepresentativeProfile, StoreProfile, UserAccount } from '../types';
+
+export const REQUIRED_REPRESENTATIVE_ADS = 30;
 
 export function getStoreBio(store: StoreProfile, isAr: boolean): string {
   const customBio = (store as StoreProfile & { bio?: string }).bio || store.description;
@@ -100,9 +102,101 @@ export function getStoreWhatsAppUrl(
 export function buildStoreShareUrl(storeId: string): string {
   try {
     const url = new URL(window.location.href);
+    url.searchParams.delete('rep');
     url.searchParams.set('store', storeId);
     return url.toString();
   } catch {
     return `${window.location.origin}/?store=${encodeURIComponent(storeId)}`;
+  }
+}
+
+export function isRepresentativeAd(listing: Listing): boolean {
+  return listing.adType === 'representative' || listing.sellerType === 'representative';
+}
+
+export function getRepresentativePosts(listings: Listing[], repId: string): Listing[] {
+  if (!repId) return [];
+  return listings.filter(
+    (item) =>
+      isRepresentativeAd(item) &&
+      item.sellerId &&
+      String(item.sellerId) === String(repId)
+  );
+}
+
+export function getQualifiedRepresentativeIds(listings: Listing[]): Set<string> {
+  const counts = new Map<string, number>();
+  listings.forEach((item) => {
+    if (isRepresentativeAd(item) && item.sellerId) {
+      const key = String(item.sellerId);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  });
+  const qualified = new Set<string>();
+  counts.forEach((count, sellerId) => {
+    if (count >= REQUIRED_REPRESENTATIVE_ADS) {
+      qualified.add(sellerId);
+    }
+  });
+  return qualified;
+}
+
+export function buildRepresentativeProfile(
+  repId: string,
+  posts: Listing[],
+  fallbackUser?: UserAccount | null,
+  isAr = true
+): RepresentativeProfile {
+  const sorted = [...posts].sort(
+    (a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0)
+  );
+  const latest = sorted[0];
+  const withCoverage = sorted.find((p) => (p.coverageArea || p.deliveryNotes || '').trim().length > 0);
+  const coverage = (withCoverage?.coverageArea || withCoverage?.deliveryNotes || '').trim();
+
+  return {
+    id: repId,
+    name:
+      latest?.sellerName ||
+      (fallbackUser && String(fallbackUser.id) === String(repId) ? fallbackUser.name : '') ||
+      (isAr ? 'مندوب في سوق بلحظة' : 'Souq Belahdha Representative'),
+    phoneNumber:
+      latest?.sellerPhone ||
+      (fallbackUser && String(fallbackUser.id) === String(repId) ? fallbackUser.phoneNumber : '') ||
+      '',
+    avatarUrl:
+      latest?.sellerAvatar ||
+      (fallbackUser && String(fallbackUser.id) === String(repId) ? fallbackUser.avatarUrl : undefined),
+    bio: isAr
+      ? 'مندوب ربط وتنسيق مباشر بين البائع والمشتري وتوصيل الطلبات في الموصل'
+      : 'Direct buyer-seller coordinator and delivery representative in Mosul',
+    coverageArea: coverage || undefined,
+    totalDeals: posts.length,
+  };
+}
+
+export function getRepresentativeWhatsAppUrl(
+  phone: string | undefined,
+  repName: string,
+  isAr: boolean
+): string | null {
+  if (!phone) return null;
+  const clean = phone.replace(/[^0-9]/g, '');
+  if (!clean) return null;
+  const formatted = clean.startsWith('0') ? `964${clean.slice(1)}` : clean;
+  const message = isAr
+    ? `السلام عليكم ${repName}، أتواصل معك كمندوب للتنسيق والتوصيل عبر سوق بلحظة.`
+    : `Hello ${repName}, I'm reaching out to coordinate delivery via Souq Belahdha.`;
+  return `https://wa.me/${formatted}?text=${encodeURIComponent(message)}`;
+}
+
+export function buildRepresentativeShareUrl(repId: string): string {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('store');
+    url.searchParams.set('rep', repId);
+    return url.toString();
+  } catch {
+    return `${window.location.origin}/?rep=${encodeURIComponent(repId)}`;
   }
 }

@@ -88,7 +88,10 @@ export const NeighborhoodSelector: React.FC<NeighborhoodSelectorProps> = ({
       : value || (isAr ? 'اختر الحي / المنطقة' : 'Select neighborhood');
 
   return (
-    <div ref={containerRef} className={`relative ${mode === 'form' ? 'w-full' : 'shrink-0'}`}>
+    <div
+      ref={containerRef}
+      className={`relative ${mode === 'form' ? 'w-full' : 'w-full sm:w-auto shrink-0'}`}
+    >
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
@@ -97,7 +100,7 @@ export const NeighborhoodSelector: React.FC<NeighborhoodSelectorProps> = ({
         className={
           mode === 'form'
             ? 'group w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 hover:bg-white border border-[#E8C5A0] text-sm text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all flex items-center justify-between gap-2'
-            : `group min-h-[42px] px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center justify-between gap-2 whitespace-nowrap ${
+            : `group w-full sm:w-auto min-h-[42px] px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center justify-between gap-2 whitespace-nowrap ${
                 isFilteredActive
                   ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
                   : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'

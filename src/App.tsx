@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus,
   User,
@@ -29,16 +29,20 @@ import {
   fetchSupabasePosts,
   fetchSupabaseStores,
   fetchStoreById,
+  fetchPostsByRepresentativeId,
   subscribeToSupabasePosts,
   trackSessionVisitor,
   updatePostSoldOutStatus,
   deleteSupabasePost
 } from './lib/supabase';
+import { getQualifiedRepresentativeIds } from './lib/storeUtils';
+import { GeoCoords } from './lib/geoUtils';
 import { ListingWizard } from './components/listing-wizard/ListingWizard';
 import { MarketplaceFeed } from './components/marketplace/MarketplaceFeed';
 import { ListingDetailModal } from './components/marketplace/ListingDetailModal';
 import { StoresDirectoryView } from './components/stores/StoresDirectoryView';
 import { StorefrontView } from './components/stores/StorefrontView';
+import { RepresentativeCornerView } from './components/stores/RepresentativeCornerView';
 import { ChatModal } from './components/chat/ChatModal';
 import { UserProfileModal } from './components/profile/UserProfileModal';
 import { AuthModal } from './components/auth/AuthModal';
@@ -66,11 +70,14 @@ export default function App() {
     added?: boolean;
   } | null>(null);
 
-  // Detail, Storefront, Chat, Profile & Auth Modals
+  // Detail, Storefront, Representative Corner, Chat, Profile & Auth Modals
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [selectedStore, setSelectedStore] = useState<StoreProfile | null>(null);
   const [storeReturnView, setStoreReturnView] = useState<'feed' | 'stores'>('stores');
   const [isResolvingSharedStore, setIsResolvingSharedStore] = useState<boolean>(false);
+  const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
+  const [repReturnView, setRepReturnView] = useState<'feed' | 'stores'>('feed');
+  const [isResolvingSharedRep, setIsResolvingSharedRep] = useState<boolean>(false);
   const [updatingSoldOutId, setUpdatingSoldOutId] = useState<string | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [chatListing, setChatListing] = useState<Listing | null>(null);
@@ -78,6 +85,13 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<(() => void) | null>(null);
+
+  // Browser geolocation for distance badges & Nearest sorting
+  const [userLocation, setUserLocation] = useState<GeoCoords | null>(null);
+  const [isLocatingUser, setIsLocatingUser] = useState<boolean>(false);
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'granted' | 'denied' | 'unsupported'>('idle');
+
+  const qualifiedRepIds = useMemo(() => getQualifiedRepresentativeIds(listings), [listings]);
 
   const showToastNotification = (
     message: string,
@@ -226,10 +240,11 @@ export default function App() {
     loadPublicPosts();
     loadPublicStores();
 
-    // Check for deep-linked storefront (?store=STORE_ID)
+    // Check for deep-linked storefront (?store=STORE_ID) or representative corner (?rep=USER_ID)
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const sharedStoreId = urlParams.get('store');
+      const sharedRepId = urlParams.get('rep');
       if (sharedStoreId) {
         setIsResolvingSharedStore(true);
         fetchStoreById(sharedStoreId)
@@ -244,6 +259,24 @@ export default function App() {
           .finally(() => {
             setIsResolvingSharedStore(false);
           });
+      } else if (sharedRepId) {
+        setIsResolvingSharedRep(true);
+        fetchPostsByRepresentativeId(sharedRepId)
+          .then((repPosts) => {
+            if (repPosts.length > 0) {
+              setListings((prev) => {
+                const map = new Map(prev.map((p) => [p.id, p]));
+                repPosts.forEach((p) => map.set(p.id, p));
+                return Array.from(map.values());
+              });
+            }
+            setSelectedRepId(sharedRepId);
+            setRepReturnView('feed');
+            setCurrentView('rep_corner');
+          })
+          .finally(() => {
+            setIsResolvingSharedRep(false);
+          });
       }
     } catch {
       // Ignore URL parse issues in restricted frames
@@ -253,6 +286,34 @@ export default function App() {
     trackSessionVisitor().then((count) => {
       if (typeof count === 'number') setVisitorCount(count);
     });
+
+    // 2b. Silently fetch user GPS coordinates if geolocation permission was already granted
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      if (navigator.permissions?.query) {
+        navigator.permissions
+          .query({ name: 'geolocation' })
+          .then((status) => {
+            if (status.state === 'granted') {
+              setLocationStatus('granted');
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  setUserLocation({
+                    lat: Number(pos.coords.latitude.toFixed(6)),
+                    lng: Number(pos.coords.longitude.toFixed(6)),
+                  });
+                },
+                () => {},
+                { enableHighAccuracy: false, timeout: 8000, maximumAge: 120000 }
+              );
+            } else if (status.state === 'denied') {
+              setLocationStatus('denied');
+            }
+          })
+          .catch(() => {});
+      }
+    } else {
+      setLocationStatus('unsupported');
+    }
 
     // 3. Subscribe to Supabase Realtime changes (INSERT, UPDATE, DELETE) on `posts`
     const unsubscribePosts = subscribeToSupabasePosts({
@@ -308,13 +369,58 @@ export default function App() {
     document.documentElement.dir = isAr ? 'rtl' : 'ltr';
   }, [lang, isAr]);
 
-  const syncStoreQueryParam = (storeId?: string | null) => {
+  const handleRequestUserLocation = () => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+      setLocationStatus('unsupported');
+      showToastNotification(
+        isAr ? 'المتصفح لا يدعم تحديد الموقع' : 'Geolocation is unsupported',
+        'info'
+      );
+      return;
+    }
+
+    setIsLocatingUser(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLocation({
+          lat: Number(pos.coords.latitude.toFixed(6)),
+          lng: Number(pos.coords.longitude.toFixed(6)),
+        });
+        setLocationStatus('granted');
+        setIsLocatingUser(false);
+        showToastNotification(
+          isAr ? 'تم تحديد موقعك لعرض الأقرب إليك' : 'Location updated for nearby results',
+          'share'
+        );
+      },
+      (err) => {
+        setIsLocatingUser(false);
+        if (err?.code === 1) {
+          setLocationStatus('denied');
+        }
+        showToastNotification(
+          isAr
+            ? 'تعذر الوصول للموقع، يمكنك التصفية حسب الحي'
+            : 'Unable to access location; neighborhood filter still works',
+          'info'
+        );
+      },
+      { enableHighAccuracy: true, timeout: 9000, maximumAge: 60000 }
+    );
+  };
+
+  const syncEntityQueryParams = (params: { storeId?: string | null; repId?: string | null }) => {
     try {
       const url = new URL(window.location.href);
-      if (storeId) {
-        url.searchParams.set('store', storeId);
+      if (params.storeId) {
+        url.searchParams.set('store', params.storeId);
       } else {
         url.searchParams.delete('store');
+      }
+      if (params.repId) {
+        url.searchParams.set('rep', params.repId);
+      } else {
+        url.searchParams.delete('rep');
       }
       window.history.replaceState({}, '', url.toString());
     } catch {
@@ -323,22 +429,39 @@ export default function App() {
   };
 
   const openStorefrontView = (store: StoreProfile, returnTo: 'feed' | 'stores' = 'stores') => {
+    setSelectedRepId(null);
     setStoreReturnView(returnTo);
     setSelectedStore(store);
     setCurrentView('store_detail');
-    syncStoreQueryParam(store.id);
+    syncEntityQueryParams({ storeId: store.id, repId: null });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleCloseStorefront = () => {
     setSelectedStore(null);
     setCurrentView(storeReturnView);
-    syncStoreQueryParam(null);
+    syncEntityQueryParams({});
+  };
+
+  const openRepresentativeCorner = (repId: string, returnTo: 'feed' | 'stores' = 'feed') => {
+    setSelectedStore(null);
+    setRepReturnView(returnTo);
+    setSelectedRepId(repId);
+    setCurrentView('rep_corner');
+    syncEntityQueryParams({ repId, storeId: null });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCloseRepresentativeCorner = () => {
+    setSelectedRepId(null);
+    setCurrentView(repReturnView);
+    syncEntityQueryParams({});
   };
 
   const handleSelectBuy = async () => {
     setSelectedStore(null);
-    syncStoreQueryParam(null);
+    setSelectedRepId(null);
+    syncEntityQueryParams({});
     setCurrentView('feed');
     setResetFeedTrigger((prev) => prev + 1);
     await loadPublicPosts();
@@ -346,7 +469,8 @@ export default function App() {
 
   const handleSelectStoresTab = async () => {
     setSelectedStore(null);
-    syncStoreQueryParam(null);
+    setSelectedRepId(null);
+    syncEntityQueryParams({});
     setCurrentView('stores');
     await loadPublicStores();
   };
@@ -371,7 +495,9 @@ export default function App() {
   const handleListingPublished = (newListing: Listing) => {
     setListings((prev) => [newListing, ...prev.filter((item) => item.id !== newListing.id)]);
     setNewlyPublishedId(newListing.id);
-    syncStoreQueryParam(null);
+    setSelectedRepId(null);
+    setSelectedStore(null);
+    syncEntityQueryParams({});
     setCurrentView('feed');
 
     setTimeout(() => {
@@ -522,7 +648,7 @@ export default function App() {
             onPublished={handleListingPublished}
             lang={lang}
           />
-        ) : isResolvingSharedStore && !selectedStore ? (
+        ) : (isResolvingSharedStore && !selectedStore) || (isResolvingSharedRep && !selectedRepId) ? (
           <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-5">
             <div className="h-44 rounded-3xl skeleton-shimmer border border-[#E8C5A0]/80" />
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
@@ -537,6 +663,22 @@ export default function App() {
               ))}
             </div>
           </div>
+        ) : currentView === 'rep_corner' && selectedRepId ? (
+          <RepresentativeCornerView
+            repId={selectedRepId}
+            listings={listings}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={handleToggleFavorite}
+            onBack={handleCloseRepresentativeCorner}
+            onSelectListing={(item) => setSelectedListing(item)}
+            onNotifyToast={showToastNotification}
+            backLabel={
+              repReturnView === 'stores'
+                ? (isAr ? 'رجوع للمتاجر' : 'Back to Stores')
+                : (isAr ? 'رجوع للسوق' : 'Back to Market')
+            }
+            lang={lang}
+          />
         ) : currentView === 'store_detail' && selectedStore ? (
           <StorefrontView
             store={selectedStore}
@@ -559,20 +701,31 @@ export default function App() {
             listings={listings}
             currentUser={currentUser}
             onSelectStore={(st) => openStorefrontView(st, 'stores')}
+            userLocation={userLocation}
+            isLocatingUser={isLocatingUser}
+            locationStatus={locationStatus}
+            onRequestLocation={handleRequestUserLocation}
             isLoading={isStoresLoading}
             lang={lang}
           />
         ) : (
           <MarketplaceFeed
             listings={listings}
+            stores={stores}
             currentUser={currentUser}
             favoriteIds={favoriteIds}
             onToggleFavorite={handleToggleFavorite}
             onSelectListing={(item) => setSelectedListing(item)}
             onOpenStore={(storeId) => handleOpenStoreById(storeId, 'feed')}
+            onOpenRepresentative={(repId) => openRepresentativeCorner(repId, 'feed')}
+            qualifiedRepIds={qualifiedRepIds}
             onOpenChat={(item) => setChatListing(item)}
             onOpenCreate={handleSelectSell}
             onRequireAuth={handleRequireAuth}
+            userLocation={userLocation}
+            isLocatingUser={isLocatingUser}
+            locationStatus={locationStatus}
+            onRequestLocation={handleRequestUserLocation}
             newlyPublishedId={newlyPublishedId}
             resetTrigger={resetFeedTrigger}
             isLoading={isFeedLoading}
@@ -653,6 +806,12 @@ export default function App() {
           onOpenStore={(storeId) =>
             handleOpenStoreById(storeId, currentView === 'stores' ? 'stores' : 'feed')
           }
+          onOpenRepresentative={(repId) =>
+            openRepresentativeCorner(repId, currentView === 'stores' ? 'stores' : 'feed')
+          }
+          isRepresentativeQualified={Boolean(
+            selectedListing.sellerId && qualifiedRepIds.has(String(selectedListing.sellerId))
+          )}
           onRequireAuth={handleRequireAuth}
           lang={lang}
         />
@@ -684,6 +843,7 @@ export default function App() {
             setShowAuthModal(true);
           }}
           onOpenStore={(st) => openStorefrontView(st, 'stores')}
+          onOpenRepresentative={(repId) => openRepresentativeCorner(repId, 'feed')}
           onStoreCreated={handleStoreCreated}
           onClose={() => setShowProfileModal(false)}
           lang={lang}

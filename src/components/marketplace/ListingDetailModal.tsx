@@ -17,9 +17,11 @@ import {
   Image as ImageIcon,
   PackageX,
   PackageCheck,
-  Loader2
+  Loader2,
+  Handshake
 } from 'lucide-react';
 import { Listing, UserAccount } from '../../types';
+import { isRepresentativeAd } from '../../lib/storeUtils';
 
 interface ListingDetailModalProps {
   listing: Listing;
@@ -31,6 +33,8 @@ interface ListingDetailModalProps {
   onClose: () => void;
   onOpenChat: (listing: Listing) => void;
   onOpenStore?: (storeId: string) => void;
+  onOpenRepresentative?: (repId: string) => void;
+  isRepresentativeQualified?: boolean;
   onRequireAuth: (pendingAction: () => void, message?: string) => void;
   lang?: 'ar' | 'en';
 }
@@ -45,6 +49,8 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   onClose,
   onOpenChat,
   onOpenStore,
+  onOpenRepresentative,
+  isRepresentativeQualified = false,
   onRequireAuth,
   lang = 'ar'
 }) => {
@@ -168,6 +174,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
       : undefined);
 
   const isCommercial = listing.adType === 'commercial' || listing.sellerType === 'commercial';
+  const isRep = isRepresentativeAd(listing);
+  const isDelivery =
+    listing.deliveryMethod === 'delivery' ||
+    (!listing.deliveryMethod && listing.deliveryAvailable);
 
   return (
     <div
@@ -345,6 +355,12 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
 
             <div className="flex items-center flex-wrap gap-2 text-xs text-[#64748B]">
+              {isRep && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-teal-50 text-[#0F766E] border border-teal-200/90 text-[11px] font-bold">
+                  <Handshake className="w-3.5 h-3.5 text-[#0D9488]" />
+                  <span>{isAr ? 'بواسطة مندوب' : 'Via Representative'}</span>
+                </span>
+              )}
               <span className="inline-flex items-center gap-1 text-[#0F766E] font-semibold">
                 <MapPin className="w-3.5 h-3.5 text-[#0D9488]" />
                 {listing.district || 'الموصل'}
@@ -356,15 +372,25 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               </span>
               <span aria-hidden="true">·</span>
               <span>{listing.condition === 'new' ? 'جديد' : 'مستعمل'}</span>
-              {listing.deliveryAvailable && (
-                <>
-                  <span aria-hidden="true">·</span>
-                  <span className="inline-flex items-center gap-1 text-[#1E293B] font-medium">
-                    <Truck className="w-3.5 h-3.5 text-[#0D9488]" />
-                    متوفر توصيل
-                  </span>
-                </>
-              )}
+              <span aria-hidden="true">·</span>
+              <span
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold ${
+                  isDelivery
+                    ? 'bg-teal-50 text-[#0F766E] border border-teal-200/80'
+                    : 'bg-[#FFE4C4]/75 text-[#7C4A21] border border-[#E8C5A0]'
+                }`}
+              >
+                {isDelivery ? (
+                  <Truck className="w-3.5 h-3.5 text-[#0D9488]" />
+                ) : (
+                  <MapPin className="w-3.5 h-3.5 text-[#7C4A21]" />
+                )}
+                <span>
+                  {isDelivery
+                    ? (isAr ? 'توصيل' : 'Delivery')
+                    : (isAr ? 'استلام موقعي' : 'On-site Pickup')}
+                </span>
+              </span>
             </div>
           </div>
 
@@ -434,6 +460,8 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
+                  ) : isRep ? (
+                    <Handshake className="w-5 h-5" />
                   ) : isCommercial ? (
                     <Store className="w-5 h-5" />
                   ) : (
@@ -476,9 +504,24 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                         <span>{isAr ? 'زيارة المتجر' : 'View Store'}</span>
                       </button>
                     )}
+                    {isRep && isRepresentativeQualified && listing.sellerId && onOpenRepresentative && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenRepresentative(String(listing.sellerId!));
+                        }}
+                        className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FFE4C4] hover:bg-[#F5D0A9] active:scale-95 text-[#7C4A21] border border-[#E8C5A0] text-[11px] font-bold transition-all"
+                      >
+                        <Handshake className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                        <span>{isAr ? 'تصفح ركن المندوب' : 'Browse Rep Corner'}</span>
+                      </button>
+                    )}
                   </div>
                   <p className="text-xs text-[#64748B]">
-                    {isCommercial
+                    {isRep
+                      ? (isAr ? 'بواسطة مندوب • ربط وتوصيل مباشر' : 'Via Representative • Direct Coordination')
+                      : isCommercial
                       ? (isAr ? 'إعلان تجاري' : 'Commercial Ad')
                       : (isAr ? 'إعلان شخصي' : 'Personal Ad')}
                   </p>
@@ -497,8 +540,20 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
               )}
             </div>
 
-            {/* Clean "Open in Google Maps" Button + Map Preview */}
-            {resolvedMapsUrl && (
+            {/* Coverage Note for Representative OR Google Maps for Personal/Commercial */}
+            {isRep ? (
+              <div className="p-3 rounded-xl bg-[#FFE4C4]/50 border border-[#E8C5A0] flex items-start gap-2 text-xs text-[#1E293B]">
+                <Handshake className="w-4 h-4 text-[#0D9488] shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">
+                    {isAr ? 'تنسيق وربط مباشر بين البائع والمشتري' : 'Direct Buyer-Seller Coordination'}
+                  </p>
+                  <p className="text-[11px] text-[#64748B] mt-0.5">
+                    {listing.coverageArea || listing.deliveryNotes || (isAr ? 'نطاق التوصيل والتنسيق داخل الموصل بدون عنوان محل ثابت' : 'Mosul delivery & coordination without a fixed shop')}
+                  </p>
+                </div>
+              </div>
+            ) : resolvedMapsUrl ? (
               <div className="space-y-2.5 pt-1">
                 <a
                   href={resolvedMapsUrl}
@@ -522,7 +577,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -532,28 +587,36 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleWhatsApp}
-              className="group min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+              className="group min-h-[46px] px-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-[11px] sm:text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 text-center leading-tight"
             >
-              <MessageCircle className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
-              <span>{isAr ? 'واتساب مباشر' : 'WhatsApp'}</span>
+              <MessageCircle className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
+              <span>
+                {isRep
+                  ? (isAr ? 'تواصل مع المندوب للتنسيق والتوصيل' : 'Contact Rep to Coordinate')
+                  : (isAr ? 'واتساب مباشر' : 'WhatsApp')}
+              </span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handlePhone}
-              className="group min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+              className="group min-h-[46px] px-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-[11px] sm:text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 text-center leading-tight"
             >
-              <Phone className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
-              <span>{isAr ? 'اتصال هاتفي' : 'Call Seller'}</span>
+              <Phone className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
+              <span>
+                {isRep
+                  ? (isAr ? 'تواصل مع المندوب للتنسيق والتوصيل' : 'Contact Rep to Coordinate')
+                  : (isAr ? 'اتصال هاتفي' : 'Call Seller')}
+              </span>
             </button>
           )}
 
           <button
             type="button"
             onClick={handleChat}
-            className="group min-h-[46px] rounded-xl bg-[#1E293B] hover:bg-slate-900 active:scale-95 text-white text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
+            className="group min-h-[46px] px-2.5 rounded-xl bg-[#1E293B] hover:bg-slate-900 active:scale-95 text-white text-[11px] sm:text-xs font-bold transition-all flex items-center justify-center gap-1.5"
           >
-            <MessageSquare className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-translate-x-0.5" />
+            <MessageSquare className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:-translate-x-0.5" />
             <span>{isAr ? 'دردشة فورية' : 'Direct Chat'}</span>
           </button>
         </div>

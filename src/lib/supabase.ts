@@ -1,5 +1,5 @@
 import { createClient, Session, User } from '@supabase/supabase-js';
-import { Listing, StoreProfile, UserAccount, CategoryId, ItemCondition, SellerType } from '../types';
+import { Listing, StoreProfile, UserAccount, CategoryId, ItemCondition, SellerType, DeliveryMethod } from '../types';
 
 export const SUPABASE_URL = (
   import.meta.env.VITE_SUPABASE_URL || 'https://yzseuychjsojkkqbtbjn.supabase.co'
@@ -230,23 +230,34 @@ export function mapPostRowToListing(row: any): Listing {
 
   const sellerPhone = row.seller_phone || '';
   const resolvedAdType = (row.ad_type || row.seller_type || 'personal') as SellerType;
+  const isRep = resolvedAdType === 'representative';
+  const resolvedDeliveryMethod: DeliveryMethod =
+    row.delivery_method === 'pickup' || row.delivery_method === 'delivery'
+      ? row.delivery_method
+      : row.delivery_available === true
+      ? 'delivery'
+      : 'pickup';
+  const resolvedCoverageArea =
+    (row.coverage_area || (isRep ? row.delivery_notes : '') || '').trim() || undefined;
   const latNum =
-    row.latitude != null && !Number.isNaN(Number(row.latitude))
+    !isRep && row.latitude != null && !Number.isNaN(Number(row.latitude))
       ? Number(row.latitude)
-      : row.store_location?.lat != null
+      : !isRep && row.store_location?.lat != null
       ? Number(row.store_location.lat)
       : undefined;
   const lngNum =
-    row.longitude != null && !Number.isNaN(Number(row.longitude))
+    !isRep && row.longitude != null && !Number.isNaN(Number(row.longitude))
       ? Number(row.longitude)
-      : row.store_location?.lng != null
+      : !isRep && row.store_location?.lng != null
       ? Number(row.store_location.lng)
       : undefined;
   const resolvedMapsUrl =
-    row.maps_url ||
-    (latNum !== undefined && lngNum !== undefined
-      ? `https://www.google.com/maps?q=${latNum},${lngNum}`
-      : undefined);
+    !isRep
+      ? row.maps_url ||
+        (latNum !== undefined && lngNum !== undefined
+          ? `https://www.google.com/maps?q=${latNum},${lngNum}`
+          : undefined)
+      : undefined;
 
   return {
     id: String(row.id),
@@ -261,13 +272,15 @@ export function mapPostRowToListing(row: any): Listing {
     adType: resolvedAdType,
     storeId: row.store_id ? String(row.store_id) : undefined,
     storeName: row.store_name || undefined,
-    storeLocation: row.store_location || undefined,
+    storeLocation: !isRep ? row.store_location || undefined : undefined,
     latitude: latNum,
     longitude: lngNum,
     mapsUrl: resolvedMapsUrl,
     city: row.city || 'الموصل',
     district: row.district || 'حي الزهور',
-    deliveryAvailable: row.delivery_available !== undefined ? Boolean(row.delivery_available) : true,
+    deliveryAvailable: resolvedDeliveryMethod === 'delivery',
+    deliveryMethod: resolvedDeliveryMethod,
+    coverageArea: resolvedCoverageArea,
     deliveryNotes: row.delivery_notes || undefined,
     mediaUrls: fallbackUrls,
     thumbnailUrl: thumbImg || fallbackUrls[0] || undefined,
@@ -435,11 +448,20 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
     }
   }
 
-  const latVal = listing.latitude ?? listing.storeLocation?.lat ?? null;
-  const lngVal = listing.longitude ?? listing.storeLocation?.lng ?? null;
-  const mapsUrlVal =
-    listing.mapsUrl ||
-    (latVal !== null && lngVal !== null ? `https://www.google.com/maps?q=${latVal},${lngVal}` : null);
+  const isRep = resolvedAdType === 'representative';
+  const latVal = isRep ? null : (listing.latitude ?? listing.storeLocation?.lat ?? null);
+  const lngVal = isRep ? null : (listing.longitude ?? listing.storeLocation?.lng ?? null);
+  const mapsUrlVal = isRep
+    ? null
+    : listing.mapsUrl ||
+      (latVal !== null && lngVal !== null ? `https://www.google.com/maps?q=${latVal},${lngVal}` : null);
+  const resolvedDeliveryMethod: DeliveryMethod =
+    listing.deliveryMethod === 'pickup' || listing.deliveryMethod === 'delivery'
+      ? listing.deliveryMethod
+      : listing.deliveryAvailable
+      ? 'delivery'
+      : 'pickup';
+  const cleanCoverage = (listing.coverageArea || '').trim() || null;
 
   const rawPayload = {
     id: listing.id,
@@ -455,14 +477,16 @@ export async function saveSupabasePost(listing: Listing): Promise<SavePostResult
     ad_type: resolvedAdType,
     store_id: resolvedStoreId,
     store_name: resolvedStoreName,
-    store_location: listing.storeLocation ? sanitizeUndefinedToNull(listing.storeLocation) : null,
+    store_location: !isRep && listing.storeLocation ? sanitizeUndefinedToNull(listing.storeLocation) : null,
     latitude: latVal,
     longitude: lngVal,
     maps_url: mapsUrlVal,
     city: listing.city || 'الموصل',
     district: listing.district || 'حي الزهور',
-    delivery_available: Boolean(listing.deliveryAvailable),
-    delivery_notes: listing.deliveryNotes || null,
+    delivery_available: resolvedDeliveryMethod === 'delivery',
+    delivery_method: resolvedDeliveryMethod,
+    coverage_area: cleanCoverage,
+    delivery_notes: listing.deliveryNotes || cleanCoverage || null,
     media_urls: cleanMediaUrls.length > 0 ? cleanMediaUrls : fullImageUrl ? [fullImageUrl] : [],
     thumbnail_url: thumbnailUrl,
     full_image_url: fullImageUrl,
@@ -816,6 +840,60 @@ export async function fetchUserCommercialStats(userId: string): Promise<{
     commercialCount,
     userStore: storeRes,
   };
+}
+
+export async function fetchUserRepresentativeStats(userId: string): Promise<{
+  repCount: number;
+}> {
+  if (!userId) return { repCount: 0 };
+
+  const adTypeCountRes = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('ad_type', 'representative');
+
+  if (!adTypeCountRes.error && typeof adTypeCountRes.count === 'number') {
+    return { repCount: adTypeCountRes.count };
+  }
+
+  const sellerTypeRes = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('seller_type', 'representative');
+
+  return {
+    repCount: typeof sellerTypeRes.count === 'number' ? sellerTypeRes.count : 0,
+  };
+}
+
+export async function fetchPostsByRepresentativeId(repUserId: string): Promise<Listing[]> {
+  if (!repUserId) return [];
+
+  const res = await supabase
+    .from('posts')
+    .select('*')
+    .eq('user_id', repUserId)
+    .eq('ad_type', 'representative')
+    .order('created_at', { ascending: false });
+
+  if (!res.error) {
+    return (res.data || []).map(mapPostRowToListing);
+  }
+
+  const fallbackRes = await supabase
+    .from('posts')
+    .select('*')
+    .eq('user_id', repUserId)
+    .eq('seller_type', 'representative')
+    .order('created_at', { ascending: false });
+
+  if (fallbackRes.error) {
+    console.warn('Supabase fetchPostsByRepresentativeId warning:', fallbackRes.error.message);
+    return [];
+  }
+  return (fallbackRes.data || []).map(mapPostRowToListing);
 }
 
 export async function createUserFreeStore(params: {

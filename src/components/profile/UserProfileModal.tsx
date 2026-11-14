@@ -17,17 +17,20 @@ import {
   PackageCheck,
   PackageX,
   Trash2,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Handshake
 } from 'lucide-react';
 import { Listing, StoreProfile, UserAccount } from '../../types';
 import { saveUserAccount, clearUserAccount } from '../../data/mockListings';
 import {
   createUserFreeStore,
   fetchUserCommercialStats,
+  fetchUserRepresentativeStats,
   signOutUser,
   uploadFileToStorage,
   upsertUserProfile
 } from '../../lib/supabase';
+import { isRepresentativeAd, REQUIRED_REPRESENTATIVE_ADS } from '../../lib/storeUtils';
 
 const REQUIRED_COMMERCIAL_ADS = 30;
 
@@ -42,6 +45,7 @@ interface UserProfileModalProps {
   onUpdateUser: (user: UserAccount | null) => void;
   onOpenAuth?: () => void;
   onOpenStore?: (store: StoreProfile) => void;
+  onOpenRepresentative?: (repId: string) => void;
   onStoreCreated?: (store: StoreProfile) => void;
   onClose: () => void;
   lang?: 'ar' | 'en';
@@ -58,6 +62,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   onUpdateUser,
   onOpenAuth,
   onOpenStore,
+  onOpenRepresentative,
   onStoreCreated,
   onClose,
   lang = 'ar'
@@ -73,9 +78,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Commercial ads progress & Free Store unlock state
+  // Commercial ads progress & Free Store unlock state + Representative Corner unlock state
   const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [commercialCount, setCommercialCount] = useState(0);
+  const [repCount, setRepCount] = useState(0);
   const [userStore, setUserStore] = useState<StoreProfile | null>(null);
   const [showCreateStoreForm, setShowCreateStoreForm] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
@@ -91,16 +97,21 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     let active = true;
     if (!user?.id) {
       setCommercialCount(0);
+      setRepCount(0);
       setUserStore(null);
       return;
     }
 
     setIsLoadingStats(true);
-    fetchUserCommercialStats(user.id)
-      .then((res) => {
+    Promise.all([
+      fetchUserCommercialStats(user.id),
+      fetchUserRepresentativeStats(user.id),
+    ])
+      .then(([commRes, repRes]) => {
         if (!active) return;
-        setCommercialCount(res.commercialCount);
-        setUserStore(res.userStore);
+        setCommercialCount(commRes.commercialCount);
+        setUserStore(commRes.userStore);
+        setRepCount(repRes.repCount);
       })
       .finally(() => {
         if (active) setIsLoadingStats(false);
@@ -244,9 +255,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     onClose();
   };
 
-  const progressPercent = Math.min(100, Math.round((commercialCount / REQUIRED_COMMERCIAL_ADS) * 100));
-  const canUnlockStore = commercialCount >= REQUIRED_COMMERCIAL_ADS && !userStore;
-
   const myListings = user?.id
     ? listings.filter(
         (item) =>
@@ -257,6 +265,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       )
     : [];
 
+  const liveRepCount = myListings.filter((item) => isRepresentativeAd(item)).length;
+  const effectiveRepCount = Math.max(repCount, liveRepCount);
+  const repProgressPercent = Math.min(
+    100,
+    Math.round((effectiveRepCount / REQUIRED_REPRESENTATIVE_ADS) * 100)
+  );
+  const isRepCornerUnlocked = effectiveRepCount >= REQUIRED_REPRESENTATIVE_ADS;
+
+  const progressPercent = Math.min(100, Math.round((commercialCount / REQUIRED_COMMERCIAL_ADS) * 100));
+  const canUnlockStore = commercialCount >= REQUIRED_COMMERCIAL_ADS && !userStore;
+
   const handleConfirmDelete = async () => {
     if (!confirmDeleteAd || !onDeleteAd) return;
     const targetAd = confirmDeleteAd;
@@ -264,6 +283,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     if (ok) {
       if (targetAd.adType === 'commercial' || targetAd.sellerType === 'commercial') {
         setCommercialCount((prev) => Math.max(0, prev - 1));
+      } else if (isRepresentativeAd(targetAd)) {
+        setRepCount((prev) => Math.max(0, prev - 1));
       }
       setConfirmDeleteAd(null);
     }
@@ -476,6 +497,58 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   </button>
                 )
               ) : null}
+            </div>
+          )}
+
+          {/* Representative Corner Unlock Progress (30 Representative Ads) */}
+          {user && (
+            <div className="p-4 border-b border-[#E8C5A0]/70 bg-white space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
+                  <Handshake className="w-4 h-4 text-[#0D9488]" />
+                  <span>{isAr ? 'ركن المندوب' : 'Representative Corner'}</span>
+                </div>
+                {isLoadingStats ? (
+                  <Loader2 className="w-3.5 h-3.5 text-[#0D9488] animate-spin" />
+                ) : (
+                  <span className="text-xs font-bold tabular-nums text-[#0F766E]">
+                    {effectiveRepCount} / {REQUIRED_REPRESENTATIVE_ADS}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="w-full h-2.5 rounded-full bg-[#FFE4C4] overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-[#0D9488] transition-all duration-300"
+                    style={{ width: `${repProgressPercent}%` }}
+                  />
+                </div>
+                <p className="text-xs text-[#64748B] leading-relaxed">
+                  {isRepCornerUnlocked
+                    ? (isAr
+                        ? 'تم تفعيل ركن المندوب الخاص بك! يمكن للمتسوقين تصفح عروضك ومشاركة رابط الركن مباشرة.'
+                        : 'Your Representative Corner is unlocked and active!')
+                    : (isAr
+                        ? `إعلانات المندوب: ${effectiveRepCount} / ${REQUIRED_REPRESENTATIVE_ADS} — انشر ${REQUIRED_REPRESENTATIVE_ADS} إعلاناً كمندوب لفتح ركن المندوب الخاص بك!`
+                        : `Representative Ads: ${effectiveRepCount} / ${REQUIRED_REPRESENTATIVE_ADS} — Reach 30 representative ads to unlock your Corner!`)}
+                </p>
+              </div>
+
+              {isRepCornerUnlocked && onOpenRepresentative && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenRepresentative(user.id);
+                  }}
+                  className="group w-full min-h-[42px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                >
+                  <Handshake className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                  <span>{isAr ? 'تصفح ركن المندوب' : 'Browse Representative Corner'}</span>
+                  <ExternalLink className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
+                </button>
+              )}
             </div>
           )}
 

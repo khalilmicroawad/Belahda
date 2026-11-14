@@ -3,9 +3,21 @@
  * Peer-to-Peer & B2C Marketplace - Iraqi Market (Currently serving Mosul مدينة الموصل)
  */
 
-export type SellerType = 'personal' | 'commercial';
+export type SellerType = 'personal' | 'commercial' | 'representative';
+
+export type DeliveryMethod = 'pickup' | 'delivery';
 
 export type ItemCondition = 'new' | 'good' | 'acceptable';
+
+export interface RepresentativeProfile {
+  id: string;
+  name: string;
+  phoneNumber: string;
+  avatarUrl?: string;
+  bio?: string;
+  coverageArea?: string;
+  totalDeals: number;
+}
 
 export type CategoryId = 
   | 'electronics'
@@ -87,6 +99,8 @@ export interface Listing {
   city: string; // 'الموصل' (Mosul)
   district: string; // e.g. 'حي الزهور', 'المجموعة الثقافية', 'الدواسة', etc.
   deliveryAvailable: boolean; // متوفر توصيل أو غير متوفر
+  deliveryMethod?: DeliveryMethod; // 'pickup' (استلام موقعي) | 'delivery' (توصيل)
+  coverageArea?: string; // Optional coverage note for representative ads
   deliveryNotes?: string;
   mediaUrls: string[];
   thumbnailUrl?: string;
@@ -131,6 +145,7 @@ export type AppView =
   | 'feed'         // Main marketplace browse (BUY)
   | 'stores'       // Stores Directory (متاجر)
   | 'store_detail' // Single store catalog view
+  | 'rep_corner'   // Representative Corner (ركن المندوب)
   | 'create'       // Step-by-step listing wizard (SELL)
   | 'detail'       // Listing detail view
   | 'chat'         // In-app direct messaging
