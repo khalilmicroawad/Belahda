@@ -26,10 +26,10 @@ export const ExitConfirmationModal: React.FC<ExitConfirmationModalProps> = ({
       onClick={onCancel}
     >
       <div
-        className="w-full max-w-xs sm:max-w-sm bg-white border border-[#E8C5A0] rounded-3xl p-6 shadow-[0_22px_54px_rgba(15,118,110,0.22)] animate-modal-up text-center"
+        className="w-full max-w-xs sm:max-w-sm bg-white border border-[#D9AF91] rounded-3xl p-6 shadow-[0_22px_54px_rgba(0,102,102,0.22)] animate-modal-up text-center"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-12 h-12 mx-auto mb-3.5 rounded-2xl bg-[#FFE4C4]/75 border border-[#E8C5A0] flex items-center justify-center text-[#0F766E]">
+        <div className="w-12 h-12 mx-auto mb-3.5 rounded-2xl bg-[#EDC9AF]/75 border border-[#D9AF91] flex items-center justify-center text-[#006666]">
           <LogOut className="w-5 h-5" />
         </div>
 
@@ -47,14 +47,14 @@ export const ExitConfirmationModal: React.FC<ExitConfirmationModalProps> = ({
           <button
             type="button"
             onClick={onConfirmExit}
-            className="min-h-[44px] px-4 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-sm transition-all duration-200 shadow-xs"
+            className="min-h-[44px] px-4 rounded-2xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white font-bold text-sm transition-all duration-200 shadow-xs"
           >
             نعم
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="min-h-[44px] px-4 rounded-2xl bg-[#FFE4C4]/75 hover:bg-[#FFE4C4] active:scale-95 border border-[#E8C5A0] text-[#1E293B] font-bold text-sm transition-all duration-200"
+            className="min-h-[44px] px-4 rounded-2xl bg-[#EDC9AF]/75 hover:bg-[#EDC9AF] active:scale-95 border border-[#D9AF91] text-[#1E293B] font-bold text-sm transition-all duration-200"
           >
             لا
           </button>

@@ -127,14 +127,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none text-xs animate-fade-in">
-      <div className="bg-white w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-[#E8C5A0] animate-modal-up">
+      <div className="bg-white w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-[#D9AF91] animate-modal-up">
         {/* Header */}
-        <div className="bg-white border-b border-[#E8C5A0]/80 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="bg-white border-b border-[#D9AF91]/80 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={onClose}
-              className="group min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#FFE4C4]/70 active:scale-95 flex items-center justify-center transition-all shrink-0"
+              className="group min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#EDC9AF]/70 active:scale-95 flex items-center justify-center transition-all shrink-0"
               aria-label={isAr ? 'رجوع' : 'Back'}
             >
               {isAr ? (
@@ -144,7 +144,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               )}
             </button>
 
-            <div className="w-9 h-9 rounded-xl bg-[#FFE4C4]/70 border border-[#E8C5A0] overflow-hidden flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#EDC9AF]/70 border border-[#D9AF91] overflow-hidden flex items-center justify-center shrink-0">
               {previewImg ? (
                 <img
                   src={previewImg}
@@ -153,7 +153,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <User className="w-4 h-4 text-[#0D9488]" />
+                <User className="w-4 h-4 text-[#008080]" />
               )}
             </div>
 
@@ -161,24 +161,24 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               <h3 className="text-xs font-bold text-[#1E293B] truncate max-w-[160px]">
                 {listing.sellerType === 'commercial' ? (listing.storeName || listing.sellerName) : listing.sellerName}
               </h3>
-              <p className="text-[11px] text-[#0F766E] font-medium truncate max-w-[160px]">
+              <p className="text-[11px] text-[#006666] font-medium truncate max-w-[160px]">
                 {listing.district || 'الموصل'}
               </p>
             </div>
           </div>
 
           <div className="text-right shrink-0">
-            <span className="text-xs font-extrabold tabular-nums text-[#0F766E]">
+            <span className="text-xs font-extrabold tabular-nums text-[#006666]">
               {listing.hidePrice ? 'عند التواصل' : `${listing.price.toLocaleString()} ${listing.currency}`}
             </span>
           </div>
         </div>
 
         {/* Messages Stream */}
-        <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#FFE4C4]/35">
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#EDC9AF]/35">
           {/* Reference Card */}
-          <div className="p-2.5 rounded-2xl bg-white border border-[#E8C5A0] shadow-2xs flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#FFE4C4]/70 overflow-hidden flex items-center justify-center shrink-0">
+          <div className="p-2.5 rounded-2xl bg-white border border-[#D9AF91] shadow-2xs flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#EDC9AF]/70 overflow-hidden flex items-center justify-center shrink-0">
               {previewImg ? (
                 <img
                   src={previewImg}
@@ -187,7 +187,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <Store className="w-4 h-4 text-[#0D9488]" />
+                <Store className="w-4 h-4 text-[#008080]" />
               )}
             </div>
             <div className="flex-1 min-w-0 text-xs">
@@ -195,11 +195,11 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                 {listing.title}
               </span>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-[11px] text-[#0F766E] tabular-nums font-bold">
+                <span className="text-[11px] text-[#006666] tabular-nums font-bold">
                   {listing.hidePrice ? 'السعر عند التواصل' : `${listing.price.toLocaleString()} ${listing.currency}`}
                 </span>
                 <span className="text-[11px] text-[#64748B] flex items-center gap-1">
-                  <Truck className="w-3 h-3 text-[#0D9488]" />
+                  <Truck className="w-3 h-3 text-[#008080]" />
                   {listing.deliveryAvailable ? 'متوفر توصيل' : 'استلام فقط'}
                 </span>
               </div>
@@ -215,8 +215,8 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               <div
                 className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
                   m.isMe
-                    ? 'bg-[#0D9488] text-white rounded-br-xs shadow-xs'
-                    : 'bg-white text-[#1E293B] border border-[#E8C5A0] rounded-bl-xs shadow-2xs'
+                    ? 'bg-[#008080] text-white rounded-br-xs shadow-xs'
+                    : 'bg-white text-[#1E293B] border border-[#D9AF91] rounded-bl-xs shadow-2xs'
                 }`}
               >
                 <p>{m.text}</p>
@@ -234,10 +234,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
           {/* Typing */}
           {isTyping && (
-            <div className="flex items-center gap-1 p-2.5 bg-white rounded-xl border border-[#E8C5A0] w-16 text-[#0D9488]">
-              <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce"></span>
-              <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce [animation-delay:0.2s]"></span>
-              <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce [animation-delay:0.4s]"></span>
+            <div className="flex items-center gap-1 p-2.5 bg-white rounded-xl border border-[#D9AF91] w-16 text-[#008080]">
+              <span className="w-1.5 h-1.5 bg-[#008080] rounded-full animate-bounce"></span>
+              <span className="w-1.5 h-1.5 bg-[#008080] rounded-full animate-bounce [animation-delay:0.2s]"></span>
+              <span className="w-1.5 h-1.5 bg-[#008080] rounded-full animate-bounce [animation-delay:0.4s]"></span>
             </div>
           )}
 
@@ -245,36 +245,36 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Quick Suggestions (Zero Horizontal Scroll: Clean Wrap) */}
-        <div className="px-3 py-2 bg-white border-t border-[#E8C5A0]/80 flex flex-wrap items-center gap-1.5">
+        <div className="px-3 py-2 bg-white border-t border-[#D9AF91]/80 flex flex-wrap items-center gap-1.5">
           {quickPrompts.map((q, i) => (
             <button
               key={i}
               type="button"
               onClick={() => handleSend(q)}
-              className="group text-[11px] font-medium text-[#1E293B] bg-[#FFE4C4]/75 hover:bg-teal-50 hover:text-[#0F766E] active:scale-95 px-2.5 py-1 rounded-xl border border-[#E8C5A0] transition-all inline-flex items-center gap-1"
+              className="group text-[11px] font-medium text-[#1E293B] bg-[#EDC9AF]/75 hover:bg-teal-50 hover:text-[#006666] active:scale-95 px-2.5 py-1 rounded-xl border border-[#D9AF91] transition-all inline-flex items-center gap-1"
             >
-              <MessageSquare className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+              <MessageSquare className="w-3 h-3 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
               <span>{q}</span>
             </button>
           ))}
         </div>
 
         {/* Input */}
-        <div className="p-3 bg-white border-t border-[#E8C5A0]/80 flex items-center gap-2 pb-safe">
+        <div className="p-3 bg-white border-t border-[#D9AF91]/80 flex items-center gap-2 pb-safe">
           <input
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={isAr ? 'اكتب رسالتك للبائع هنا...' : 'Type message...'}
-            className="flex-1 h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
+            className="flex-1 h-10 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080] focus:bg-white transition-all"
           />
 
           <button
             type="button"
             onClick={() => handleSend()}
             disabled={!inputVal.trim()}
-            className="group w-10 h-10 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-40 active:scale-90 text-white flex items-center justify-center transition-all shrink-0"
+            className="group w-10 h-10 rounded-xl bg-[#008080] hover:bg-[#006666] disabled:opacity-40 active:scale-90 text-white flex items-center justify-center transition-all shrink-0"
             aria-label={isAr ? 'إرسال' : 'Send'}
           >
             <Send className="w-4 h-4 rtl:rotate-180 transition-transform duration-200 rtl:group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />

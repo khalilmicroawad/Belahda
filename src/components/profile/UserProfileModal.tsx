@@ -292,11 +292,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none text-xs animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-[#E8C5A0] max-h-[92vh] flex flex-col animate-modal-up">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-[#D9AF91] max-h-[92vh] flex flex-col animate-modal-up">
         {/* Header */}
-        <div className="p-4 border-b border-[#E8C5A0]/80 flex items-center justify-between bg-[#FFE4C4]/75 shrink-0">
+        <div className="p-4 border-b border-[#D9AF91]/80 flex items-center justify-between bg-[#EDC9AF]/75 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center overflow-hidden shadow-xs">
+            <div className="w-9 h-9 rounded-xl bg-[#008080] text-white flex items-center justify-center overflow-hidden shadow-xs">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
               ) : (
@@ -315,7 +315,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FFE4C4] active:scale-90 flex items-center justify-center transition-all"
+            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#EDC9AF] active:scale-90 flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
@@ -326,7 +326,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Account Info Strip */}
           <div className="p-3.5 bg-teal-50/70 border-b border-teal-100 flex items-center justify-between text-xs">
             <div>
-              <span className="text-[11px] text-[#0F766E] font-semibold block">
+              <span className="text-[11px] text-[#006666] font-semibold block">
                 {userStore || user?.hasCustomStore
                   ? (isAr ? 'مالك متجر معتمد' : 'Store Owner')
                   : user
@@ -338,8 +338,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </span>
             </div>
             {user ? (
-              <span className="text-[11px] font-bold text-[#0F766E] inline-flex items-center gap-1">
-                <ShieldCheck className="w-3.5 h-3.5 text-[#0D9488]" />
+              <span className="text-[11px] font-bold text-[#006666] inline-flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#008080]" />
                 {isAr ? 'نشط' : 'Active'}
               </span>
             ) : (
@@ -350,7 +350,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                     onOpenAuth();
                   }}
-                  className="group min-h-[36px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
+                  className="group min-h-[36px] px-3 py-1.5 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
                 >
                   <LogIn className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 rtl:group-hover:-translate-x-0.5" />
                   <span>{isAr ? 'دخول / تسجيل' : 'Sign In'}</span>
@@ -361,16 +361,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* Free Store Unlock Progress (30 Commercial Ads) */}
           {user && (
-            <div className="p-4 border-b border-[#E8C5A0]/70 bg-white space-y-3">
+            <div className="p-4 border-b border-[#D9AF91]/70 bg-white space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
-                  <Store className="w-4 h-4 text-[#0D9488]" />
+                  <Store className="w-4 h-4 text-[#008080]" />
                   <span>{isAr ? 'المتجر المجاني' : 'Free Store'}</span>
                 </div>
                 {isLoadingStats ? (
-                  <Loader2 className="w-3.5 h-3.5 text-[#0D9488] animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 text-[#008080] animate-spin" />
                 ) : (
-                  <span className="text-xs font-bold tabular-nums text-[#0F766E]">
+                  <span className="text-xs font-bold tabular-nums text-[#006666]">
                     {commercialCount} / {REQUIRED_COMMERCIAL_ADS}
                   </span>
                 )}
@@ -378,9 +378,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
               {/* Progress Bar */}
               <div className="space-y-1.5">
-                <div className="w-full h-2.5 rounded-full bg-[#FFE4C4] overflow-hidden">
+                <div className="w-full h-2.5 rounded-full bg-[#EDC9AF] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#0D9488] transition-all duration-300"
+                    className="h-full rounded-full bg-[#008080] transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
@@ -392,14 +392,14 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               </div>
 
               {storeSuccessMsg && (
-                <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-[#0F766E] text-xs font-semibold flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-[#0D9488] shrink-0" />
+                <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-[#006666] text-xs font-semibold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#008080] shrink-0" />
                   <span>{storeSuccessMsg}</span>
                 </div>
               )}
 
               {userStore ? (
-                <div className="p-3 rounded-xl bg-[#FFE4C4]/70 border border-[#E8C5A0] flex items-center justify-between gap-2">
+                <div className="p-3 rounded-xl bg-[#EDC9AF]/70 border border-[#D9AF91] flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-[#1E293B] truncate">{userStore.name}</p>
                     <p className="text-xs text-[#64748B] tabular-nums" dir="ltr">
@@ -413,7 +413,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         onClose();
                         onOpenStore(userStore);
                       }}
-                      className="group min-h-[38px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold flex items-center gap-1 shrink-0 transition-all"
+                      className="group min-h-[38px] px-3 py-1.5 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white text-xs font-bold flex items-center gap-1 shrink-0 transition-all"
                     >
                       <span>{isAr ? 'عرض متجري' : 'View Store'}</span>
                       <ExternalLink className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
@@ -422,7 +422,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
               ) : canUnlockStore ? (
                 showCreateStoreForm ? (
-                  <form onSubmit={handleCreateFreeStore} className="p-3.5 rounded-2xl bg-[#FFE4C4]/45 border border-[#E8C5A0] space-y-2.5">
+                  <form onSubmit={handleCreateFreeStore} className="p-3.5 rounded-2xl bg-[#EDC9AF]/45 border border-[#D9AF91] space-y-2.5">
                     <p className="text-xs font-bold text-[#1E293B]">
                       {isAr ? 'إعداد متجرك المجاني' : 'Create Your Free Store'}
                     </p>
@@ -444,7 +444,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         value={newStoreName}
                         onChange={(e) => setNewStoreName(e.target.value)}
                         placeholder={isAr ? 'مثال: معرض النخبة للإلكترونيات' : 'Store Name'}
-                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#D9AF91] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080]"
                       />
                     </div>
 
@@ -459,7 +459,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         onChange={(e) => setNewStorePhone(e.target.value)}
                         placeholder="0770XXXXXXX"
                         dir="ltr"
-                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#E8C5A0] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
+                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#D9AF91] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080] text-left"
                       />
                     </div>
 
@@ -467,7 +467,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <button
                         type="submit"
                         disabled={isCreatingStore}
-                        className="group flex-1 min-h-[40px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                        className="group flex-1 min-h-[40px] rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                       >
                         {isCreatingStore ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -479,7 +479,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowCreateStoreForm(false)}
-                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-[#E8C5A0] text-[#1E293B] text-xs font-semibold hover:bg-[#FFE4C4]/70 active:scale-95 transition-all inline-flex items-center gap-1"
+                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-[#D9AF91] text-[#1E293B] text-xs font-semibold hover:bg-[#EDC9AF]/70 active:scale-95 transition-all inline-flex items-center gap-1"
                       >
                         <X className="w-3.5 h-3.5 text-[#64748B]" />
                         <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
@@ -490,7 +490,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowCreateStoreForm(true)}
-                    className="group w-full min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                    className="group w-full min-h-[44px] rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
                   >
                     <Store className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                     <span>{isAr ? 'أنشئ متجرك المجاني' : 'Create Your Free Store'}</span>
@@ -502,25 +502,25 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* Representative Corner Unlock Progress (30 Representative Ads) */}
           {user && (
-            <div className="p-4 border-b border-[#E8C5A0]/70 bg-white space-y-3">
+            <div className="p-4 border-b border-[#D9AF91]/70 bg-white space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
-                  <Handshake className="w-4 h-4 text-[#0D9488]" />
+                  <Handshake className="w-4 h-4 text-[#008080]" />
                   <span>{isAr ? 'ركن المندوب' : 'Representative Corner'}</span>
                 </div>
                 {isLoadingStats ? (
-                  <Loader2 className="w-3.5 h-3.5 text-[#0D9488] animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 text-[#008080] animate-spin" />
                 ) : (
-                  <span className="text-xs font-bold tabular-nums text-[#0F766E]">
+                  <span className="text-xs font-bold tabular-nums text-[#006666]">
                     {effectiveRepCount} / {REQUIRED_REPRESENTATIVE_ADS}
                   </span>
                 )}
               </div>
 
               <div className="space-y-1.5">
-                <div className="w-full h-2.5 rounded-full bg-[#FFE4C4] overflow-hidden">
+                <div className="w-full h-2.5 rounded-full bg-[#EDC9AF] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-[#0D9488] transition-all duration-300"
+                    className="h-full rounded-full bg-[#008080] transition-all duration-300"
                     style={{ width: `${repProgressPercent}%` }}
                   />
                 </div>
@@ -542,7 +542,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                     onOpenRepresentative(user.id);
                   }}
-                  className="group w-full min-h-[42px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
+                  className="group w-full min-h-[42px] rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
                 >
                   <Handshake className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
                   <span>{isAr ? 'تصفح ركن المندوب' : 'Browse Representative Corner'}</span>
@@ -554,13 +554,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* My Ads (إعلاناتي) with One-Tap Availability Toggle & Safe Delete */}
           {user && (
-            <div className="p-4 border-b border-[#E8C5A0]/70 bg-[#FFE4C4]/35 space-y-2.5">
+            <div className="p-4 border-b border-[#D9AF91]/70 bg-[#EDC9AF]/35 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
-                  <Package className="w-4 h-4 text-[#0D9488]" />
+                  <Package className="w-4 h-4 text-[#008080]" />
                   <span>{isAr ? 'إعلاناتي' : 'My Ads'}</span>
                 </div>
-                <span className="text-[11px] font-bold text-[#0F766E] tabular-nums">
+                <span className="text-[11px] font-bold text-[#006666] tabular-nums">
                   {myListings.length}
                 </span>
               </div>
@@ -578,7 +578,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     return (
                       <div
                         key={item.id}
-                        className={`p-2 rounded-xl bg-white border border-[#E8C5A0] flex items-center justify-between gap-2 transition-opacity ${
+                        className={`p-2 rounded-xl bg-white border border-[#D9AF91] flex items-center justify-between gap-2 transition-opacity ${
                           item.isSoldOut ? 'opacity-80' : ''
                         }`}
                       >
@@ -592,7 +592,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                           }}
                           className="flex items-center gap-2.5 min-w-0 text-start flex-1"
                         >
-                          <div className="w-10 h-10 rounded-lg bg-[#FFE4C4]/60 border border-[#E8C5A0] overflow-hidden shrink-0 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-[#EDC9AF]/60 border border-[#D9AF91] overflow-hidden shrink-0 flex items-center justify-center">
                             {thumb ? (
                               <img
                                 src={thumb}
@@ -610,7 +610,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                             <p className="text-xs font-bold text-[#1E293B] truncate">
                               {item.title}
                             </p>
-                            <p className="text-[11px] font-semibold text-[#0F766E] tabular-nums">
+                            <p className="text-[11px] font-semibold text-[#006666] tabular-nums">
                               {item.hidePrice
                                 ? (isAr ? 'عند التواصل' : 'Contact')
                                 : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
@@ -627,15 +627,15 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                               className={`group min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-60 ${
                                 item.isSoldOut
                                   ? 'bg-slate-800 hover:bg-slate-900 text-white'
-                                  : 'bg-teal-50 hover:bg-teal-100 text-[#0F766E] border border-teal-200'
+                                  : 'bg-teal-50 hover:bg-teal-100 text-[#006666] border border-teal-200'
                               }`}
                             >
                               {isUpdating ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : item.isSoldOut ? (
-                                <PackageX className="w-3 h-3 text-[#FFE4C4] transition-transform duration-200 group-hover:scale-110" />
+                                <PackageX className="w-3 h-3 text-[#EDC9AF] transition-transform duration-200 group-hover:scale-110" />
                               ) : (
-                                <PackageCheck className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                                <PackageCheck className="w-3 h-3 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
                               )}
                               <span>
                                 {item.isSoldOut
@@ -673,8 +673,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           {/* Edit Form */}
           <form onSubmit={handleSave} className="p-4 space-y-3">
             {saveSuccess && (
-              <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-[#0F766E] text-xs font-bold flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[#0D9488]" />
+              <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-[#006666] text-xs font-bold flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-[#008080]" />
                 <span>{isAr ? 'تم حفظ وتحديث بيانات حسابك بنجاح!' : 'Account updated!'}</span>
               </div>
             )}
@@ -687,12 +687,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             )}
 
             {/* Avatar Upload */}
-            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FFE4C4]/55 border border-[#E8C5A0]">
-              <div className="relative w-12 h-12 rounded-xl bg-[#FFE4C4] overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#EDC9AF]/55 border border-[#D9AF91]">
+              <div className="relative w-12 h-12 rounded-xl bg-[#EDC9AF] overflow-hidden shrink-0 flex items-center justify-center">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <User className="w-5 h-5 text-[#0D9488]" />
+                  <User className="w-5 h-5 text-[#008080]" />
                 )}
                 {isUploadingAvatar && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
@@ -708,7 +708,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  className="group mt-1 text-[11px] font-bold text-[#0F766E] hover:bg-teal-100/70 active:scale-95 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 inline-flex items-center gap-1 transition-all"
+                  className="group mt-1 text-[11px] font-bold text-[#006666] hover:bg-teal-100/70 active:scale-95 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 inline-flex items-center gap-1 transition-all"
                 >
                   <Camera className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                   <span>{isAr ? 'رفع صورة جديدة' : 'Upload Photo'}</span>
@@ -735,7 +735,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="مثال: عمر الموصلي"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080] focus:bg-white transition-all"
                 />
                 <User className="w-3.5 h-3.5 text-[#64748B]/70 absolute left-3 top-3 pointer-events-none" />
               </div>
@@ -753,7 +753,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="0770XXXXXXX"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080] focus:bg-white text-left transition-all"
                 />
                 <Phone className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
               </div>
@@ -770,7 +770,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@domain.com"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#008080] focus:bg-white text-left transition-all"
                 />
                 <Mail className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
               </div>
@@ -780,7 +780,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="group flex-1 min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 disabled:opacity-60 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
+                className="group flex-1 min-h-[44px] rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 disabled:opacity-60 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
               >
                 {isSaving ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -821,7 +821,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-xs rounded-2xl border border-[#E8C5A0] shadow-2xl p-5 space-y-4 animate-modal-up text-center"
+            className="bg-white w-full max-w-xs rounded-2xl border border-[#D9AF91] shadow-2xl p-5 space-y-4 animate-modal-up text-center"
           >
             <div className="w-11 h-11 rounded-2xl bg-red-50 border border-red-200/80 text-red-600 flex items-center justify-center mx-auto">
               <Trash2 className="w-5 h-5" />
@@ -837,7 +837,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   : 'Are you sure you want to delete this ad? This action cannot be undone.'}
               </p>
               {confirmDeleteAd.title && (
-                <p className="text-xs font-bold text-[#0F766E] truncate px-2 pt-0.5">
+                <p className="text-xs font-bold text-[#006666] truncate px-2 pt-0.5">
                   «{confirmDeleteAd.title}»
                 </p>
               )}
@@ -862,7 +862,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 type="button"
                 disabled={deletingPostId === confirmDeleteAd.id}
                 onClick={() => setConfirmDeleteAd(null)}
-                className="min-h-[40px] px-4 rounded-xl bg-[#FFE4C4] hover:bg-[#F5D0A9] active:scale-95 disabled:opacity-60 text-[#1E293B] border border-[#E8C5A0] text-xs font-bold transition-all"
+                className="min-h-[40px] px-4 rounded-xl bg-[#EDC9AF] hover:bg-[#F5D0A9] active:scale-95 disabled:opacity-60 text-[#1E293B] border border-[#D9AF91] text-xs font-bold transition-all"
               >
                 {isAr ? 'إلغاء' : 'Cancel'}
               </button>

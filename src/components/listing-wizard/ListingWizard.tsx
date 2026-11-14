@@ -372,7 +372,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
       {/* Form Card */}
       <form
         onSubmit={handlePublish}
-        className="bg-white rounded-2xl border border-[#E8C5A0] p-5 sm:p-6 space-y-5 shadow-[0_4px_20px_rgba(180,120,60,0.09)]"
+        className="bg-white rounded-2xl border border-[#D9AF91] p-5 sm:p-6 space-y-5 shadow-[0_4px_20px_rgba(180,120,60,0.09)]"
       >
         {(validationError || uploadError) && (
           <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
@@ -401,7 +401,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           </label>
 
           {previewUrl ? (
-            <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-[#FFE4C4]/50 border border-[#E8C5A0]">
+            <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-[#EDC9AF]/50 border border-[#D9AF91]">
               <img
                 src={previewUrl}
                 alt={title || 'صورة المنتج'}
@@ -422,18 +422,18 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               type="button"
               disabled={isMediaUploading}
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-40 rounded-2xl border-2 border-dashed border-[#D9AD82] bg-[#FFE4C4]/45 hover:border-[#0D9488] hover:bg-teal-50/40 transition-colors flex flex-col items-center justify-center gap-2.5 text-[#64748B] disabled:opacity-60"
+              className="w-full h-40 rounded-2xl border-2 border-dashed border-[#C89875] bg-[#EDC9AF]/45 hover:border-[#008080] hover:bg-teal-50/40 transition-colors flex flex-col items-center justify-center gap-2.5 text-[#64748B] disabled:opacity-60"
             >
               {isMediaUploading ? (
                 <>
-                  <Loader2 className="w-6 h-6 text-[#0D9488] animate-spin" />
-                  <span className="text-xs font-semibold text-[#0F766E]">
+                  <Loader2 className="w-6 h-6 text-[#008080] animate-spin" />
+                  <span className="text-xs font-semibold text-[#006666]">
                     {isAr ? 'جاري ضغط ورفع الصورة...' : 'Compressing & uploading...'}
                   </span>
                 </>
               ) : (
                 <>
-                  <Camera className="w-7 h-7 text-[#0D9488]/75" />
+                  <Camera className="w-7 h-7 text-[#008080]/75" />
                   <span className="text-xs font-bold text-[#1E293B]">
                     {isAr ? 'اضغط لاختيار صورة' : 'Tap to upload image'}
                   </span>
@@ -456,10 +456,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           <label className="block text-xs font-bold text-[#1E293B] mb-2">
             {isAr ? 'نوع الإعلان *' : 'Ad Type *'}
           </label>
-          <div className="relative grid grid-cols-3 p-1 rounded-2xl bg-[#FFE4C4] border border-[#E8C5A0]">
+          <div className="relative grid grid-cols-3 p-1 rounded-2xl bg-[#EDC9AF] border border-[#D9AF91]">
             <span
               aria-hidden="true"
-              className={`absolute top-1 bottom-1 start-1 w-[calc((100%-0.5rem)/3)] rounded-xl bg-[#0D9488] shadow-xs transition-transform duration-200 ease-out ${
+              className={`absolute top-1 bottom-1 start-1 w-[calc((100%-0.5rem)/3)] rounded-xl bg-[#008080] shadow-xs transition-transform duration-200 ease-out ${
                 adType === 'commercial'
                   ? isAr
                     ? '-translate-x-full'
@@ -477,7 +477,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
                 adType === 'personal'
                   ? 'text-white'
-                  : 'text-[#1E293B] hover:text-[#0F766E]'
+                  : 'text-[#1E293B] hover:text-[#006666]'
               }`}
             >
               <User className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
@@ -490,7 +490,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
                 adType === 'commercial'
                   ? 'text-white'
-                  : 'text-[#1E293B] hover:text-[#0F766E]'
+                  : 'text-[#1E293B] hover:text-[#006666]'
               }`}
             >
               <Store className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
@@ -503,7 +503,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               className={`group relative z-10 min-h-[42px] px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors duration-200 active:scale-95 ${
                 adType === 'representative'
                   ? 'text-white'
-                  : 'text-[#1E293B] hover:text-[#0F766E]'
+                  : 'text-[#1E293B] hover:text-[#006666]'
               }`}
             >
               <Handshake className="w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
@@ -511,14 +511,14 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             </button>
           </div>
           {adType === 'commercial' && ownedStore && (
-            <p className="mt-2 text-xs text-[#0F766E] font-semibold animate-fade-in">
+            <p className="mt-2 text-xs text-[#006666] font-semibold animate-fade-in">
               {isAr
                 ? `سيُربط الإعلان تلقائياً بمتجرك: ${ownedStore.name}`
                 : `Linked automatically to your store: ${ownedStore.name}`}
             </p>
           )}
           {adType === 'representative' && (
-            <p className="mt-2 text-xs text-[#0F766E] font-semibold animate-fade-in flex items-center gap-1.5">
+            <p className="mt-2 text-xs text-[#006666] font-semibold animate-fade-in flex items-center gap-1.5">
               <Handshake className="w-3.5 h-3.5 shrink-0" />
               <span>
                 {isAr
@@ -539,7 +539,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={isAr ? 'مثال: آيفون 15 برو بحالة ممتازة' : 'e.g. iPhone 15 Pro'}
-            className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+            className="w-full h-11 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all"
           />
         </div>
 
@@ -552,7 +552,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as CategoryId)}
-              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-sm text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -572,7 +572,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0"
-              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all"
             />
           </div>
         </div>
@@ -589,7 +589,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               onChange={(e) => setSellerPhone(e.target.value)}
               placeholder="0770XXXXXXX"
               dir="ltr"
-              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all text-left"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all text-left"
             />
           </div>
 
@@ -620,13 +620,13 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               }}
               className={`group min-h-[46px] px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
                 deliveryMethod === 'pickup'
-                  ? 'bg-[#0D9488] text-white border-[#0D9488] shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-[#FFE4C4]/45 hover:bg-[#FFE4C4]/80 text-[#1E293B] border-[#E8C5A0]'
+                  ? 'bg-[#008080] text-white border-[#008080] shadow-[0_4px_12px_rgba(0,128,128,0.22)]'
+                  : 'bg-[#EDC9AF]/45 hover:bg-[#EDC9AF]/80 text-[#1E293B] border-[#D9AF91]'
               }`}
             >
               <MapPin
                 className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
-                  deliveryMethod === 'pickup' ? 'text-white' : 'text-[#0D9488]'
+                  deliveryMethod === 'pickup' ? 'text-white' : 'text-[#008080]'
                 }`}
               />
               <span>{isAr ? 'استلام موقعي' : 'On-site Pickup'}</span>
@@ -640,13 +640,13 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               }}
               className={`group min-h-[46px] px-3.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${
                 deliveryMethod === 'delivery'
-                  ? 'bg-[#0D9488] text-white border-[#0D9488] shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-[#FFE4C4]/45 hover:bg-[#FFE4C4]/80 text-[#1E293B] border-[#E8C5A0]'
+                  ? 'bg-[#008080] text-white border-[#008080] shadow-[0_4px_12px_rgba(0,128,128,0.22)]'
+                  : 'bg-[#EDC9AF]/45 hover:bg-[#EDC9AF]/80 text-[#1E293B] border-[#D9AF91]'
               }`}
             >
               <Truck
                 className={`w-4 h-4 transition-transform duration-200 group-hover:scale-110 ${
-                  deliveryMethod === 'delivery' ? 'text-white' : 'text-[#0D9488]'
+                  deliveryMethod === 'delivery' ? 'text-white' : 'text-[#008080]'
                 }`}
               />
               <span>{isAr ? 'توصيل' : 'Delivery'}</span>
@@ -656,9 +656,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
 
         {/* Location Section: Coverage Note for Representative OR Google Maps Picker for Personal/Commercial */}
         {adType === 'representative' ? (
-          <div className="p-3.5 rounded-2xl bg-[#FFE4C4]/45 border border-[#E8C5A0] space-y-2.5 animate-fade-in">
+          <div className="p-3.5 rounded-2xl bg-[#EDC9AF]/45 border border-[#D9AF91] space-y-2.5 animate-fade-in">
             <div className="flex items-start gap-2 text-xs text-[#1E293B]">
-              <Handshake className="w-4 h-4 text-[#0D9488] shrink-0 mt-0.5" />
+              <Handshake className="w-4 h-4 text-[#008080] shrink-0 mt-0.5" />
               <div>
                 <p className="font-bold">
                   {isAr ? 'نطاق التوصيل والتنسيق بين البائع والمشتري' : 'Delivery & Coordination Coverage'}
@@ -679,7 +679,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                   ? 'نطاق التغطية (اختياري) مثال: الساحل الأيمن والأيسر'
                   : 'Optional coverage area (e.g. Left & Right Coast)'
               }
-              className="w-full h-10 px-3.5 rounded-xl bg-white border border-[#E8C5A0] text-xs text-[#1E293B] placeholder:text-[#64748B]/70 focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+              className="w-full h-10 px-3.5 rounded-xl bg-white border border-[#D9AF91] text-xs text-[#1E293B] placeholder:text-[#64748B]/70 focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all"
             />
           </div>
         ) : (
@@ -692,7 +692,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowPasteLink((v) => !v)}
-                  className="group inline-flex items-center gap-1 text-xs font-semibold text-[#0F766E] hover:underline active:scale-95 transition-transform"
+                  className="group inline-flex items-center gap-1 text-xs font-semibold text-[#006666] hover:underline active:scale-95 transition-transform"
                 >
                   <Link2 className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
                   <span>
@@ -707,9 +707,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             {mapsUrl ? (
               <div className="p-3 rounded-xl bg-teal-50/90 border border-teal-200 flex items-center justify-between gap-2 text-xs">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <MapPin className="w-4 h-4 text-[#0D9488] shrink-0" />
+                  <MapPin className="w-4 h-4 text-[#008080] shrink-0" />
                   <div className="min-w-0">
-                    <span className="font-bold text-[#0F766E] block truncate tabular-nums">
+                    <span className="font-bold text-[#006666] block truncate tabular-nums">
                       {latitude !== undefined && longitude !== undefined
                         ? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
                         : isAr
@@ -720,7 +720,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                       href={mapsUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[11px] font-semibold text-[#0D9488] hover:underline inline-flex items-center gap-1"
+                      className="text-[11px] font-semibold text-[#008080] hover:underline inline-flex items-center gap-1"
                     >
                       <span>{isAr ? 'معاينة على الخريطة' : 'Preview pin'}</span>
                       <ExternalLink className="w-3 h-3" />
@@ -741,12 +741,12 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                 type="button"
                 disabled={isLocating}
                 onClick={handleDetectGps}
-                className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FFE4C4]/75 hover:bg-[#FFE4C4] active:scale-[0.98] border border-[#E8C5A0] text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#EDC9AF]/75 hover:bg-[#EDC9AF] active:scale-[0.98] border border-[#D9AF91] text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
               >
                 {isLocating ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#0D9488]" />
+                  <Loader2 className="w-4 h-4 animate-spin text-[#008080]" />
                 ) : (
-                  <Crosshair className="w-4 h-4 text-[#0D9488] transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
+                  <Crosshair className="w-4 h-4 text-[#008080] transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
                 )}
                 <span>
                   {isLocating
@@ -763,12 +763,12 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
                 onChange={(e) => handleMapsUrlChange(e.target.value)}
                 placeholder="https://www.google.com/maps?q=36.3489,43.1577"
                 dir="ltr"
-                className="w-full h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
+                className="w-full h-10 px-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] text-left"
               />
             )}
 
             {locationError && (
-              <p className="text-xs text-[#7C4A21]">{locationError}</p>
+              <p className="text-xs text-[#6B3F21]">{locationError}</p>
             )}
           </div>
         )}
@@ -783,7 +783,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={isAr ? 'تفاصيل إضافية عن الحالة أو الموقع...' : 'Optional details...'}
-            className="w-full p-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all resize-none"
+            className="w-full p-3.5 rounded-xl bg-[#EDC9AF]/35 border border-[#D9AF91] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#008080] transition-all resize-none"
           />
         </div>
 
@@ -791,7 +791,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         <button
           type="submit"
           disabled={isPublishing || isMediaUploading}
-          className="group w-full min-h-[48px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-sm shadow-[0_6px_16px_rgba(13,148,136,0.22)] transition-all flex items-center justify-center gap-2"
+          className="group w-full min-h-[48px] rounded-xl bg-[#008080] hover:bg-[#006666] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-sm shadow-[0_6px_16px_rgba(0,128,128,0.22)] transition-all flex items-center justify-center gap-2"
         >
           {isPublishing ? (
             <>

@@ -94,20 +94,20 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white w-full max-w-2xl mx-auto sm:rounded-3xl rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[#E8C5A0] ${
+        className={`bg-white w-full max-w-2xl mx-auto sm:rounded-3xl rounded-t-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-[#D9AF91] ${
           isClosing ? 'animate-modal-down' : 'animate-modal-up'
         }`}
       >
         {/* Grab affordance on mobile */}
-        <div className="sm:hidden w-10 h-1 bg-[#E8C5A0] rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
+        <div className="sm:hidden w-10 h-1 bg-[#D9AF91] rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
 
         {/* Store Header */}
-        <div className="p-4 border-b border-[#E8C5A0]/80 flex items-center justify-between gap-3 bg-white sticky top-0 z-10">
+        <div className="p-4 border-b border-[#D9AF91]/80 flex items-center justify-between gap-3 bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3 min-w-0">
             <button
               type="button"
               onClick={handleAnimatedClose}
-              className="group min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FFE4C4]/70 active:scale-95 rounded-xl transition-all flex items-center justify-center shrink-0"
+              className="group min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#EDC9AF]/70 active:scale-95 rounded-xl transition-all flex items-center justify-center shrink-0"
               aria-label={isAr ? 'إغلاق' : 'Close'}
             >
               {isAr ? (
@@ -117,7 +117,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
               )}
             </button>
 
-            <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#0D9488] flex items-center justify-center shrink-0 border border-teal-100">
+            <div className="w-11 h-11 rounded-xl bg-teal-50 text-[#008080] flex items-center justify-center shrink-0 border border-teal-100">
               <Store className="w-5 h-5" />
             </div>
 
@@ -135,7 +135,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
             <a
               href={`tel:${storePhone}`}
               dir="ltr"
-              className="group min-h-[40px] px-3.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold tabular-nums flex items-center gap-1.5 shrink-0 transition-all shadow-xs"
+              className="group min-h-[40px] px-3.5 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white text-xs font-bold tabular-nums flex items-center gap-1.5 shrink-0 transition-all shadow-xs"
             >
               <Phone className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-rotate-12 group-hover:scale-110" />
               <span>{storePhone}</span>
@@ -144,13 +144,13 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
         </div>
 
         {/* Store Ads Grid */}
-        <div className="flex-1 overflow-y-auto p-4 bg-[#FFE4C4]/45">
+        <div className="flex-1 overflow-y-auto p-4 bg-[#EDC9AF]/45">
           {isLoadingPosts && storePosts.length === 0 ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div
                   key={n}
-                  className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden"
+                  className="bg-white rounded-2xl border border-[#D9AF91]/80 overflow-hidden"
                 >
                   <div className="aspect-[4/3] skeleton-shimmer" />
                   <div className="p-3.5 space-y-2">
@@ -161,7 +161,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
               ))}
             </div>
           ) : storePosts.length === 0 ? (
-            <div className="py-14 px-6 text-center bg-white rounded-2xl border border-[#E8C5A0]">
+            <div className="py-14 px-6 text-center bg-white rounded-2xl border border-[#D9AF91]">
               <p className="text-sm font-semibold text-[#64748B]">
                 {isAr ? 'لا توجد إعلانات في هذا المتجر بعد' : 'No ads in this store yet'}
               </p>
@@ -181,9 +181,9 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
                       onClose();
                       onSelectListing(item);
                     }}
-                    className="group bg-white rounded-2xl overflow-hidden border border-[#E8C5A0]/85 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.16)] hover:border-[#D9AD82] hover:-translate-y-1 cursor-pointer transition-all duration-200 active:scale-[0.98] flex flex-col"
+                    className="group bg-white rounded-2xl overflow-hidden border border-[#D9AF91]/85 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(0,128,128,0.16)] hover:border-[#C89875] hover:-translate-y-1 cursor-pointer transition-all duration-200 active:scale-[0.98] flex flex-col"
                   >
-                    <div className="relative aspect-[4/3] bg-[#FFE4C4]/50 overflow-hidden flex items-center justify-center">
+                    <div className="relative aspect-[4/3] bg-[#EDC9AF]/50 overflow-hidden flex items-center justify-center">
                       {cardImg ? (
                         <img
                           src={cardImg}
@@ -215,7 +215,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
                           className={`absolute top-2 left-2 z-10 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-xs shadow-xs transition-all duration-200 active:scale-125 ${
                             isFav
                               ? 'bg-white/95 text-rose-500 border border-rose-200/80'
-                              : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#E8C5A0]/80'
+                              : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#D9AF91]/80'
                           } ${isPopping ? 'animate-heart-pop' : ''}`}
                         >
                           <Heart
@@ -233,7 +233,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
                       </h3>
 
                       <div className="space-y-1">
-                        <p className="text-sm font-extrabold text-[#0F766E] tabular-nums">
+                        <p className="text-sm font-extrabold text-[#006666] tabular-nums">
                           {item.hidePrice
                             ? (isAr ? 'عند التواصل' : 'Contact')
                             : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
@@ -241,7 +241,7 @@ export const StoreDetailModal: React.FC<StoreDetailModalProps> = ({
 
                         {locationText && (
                           <p className="text-[11px] text-[#64748B] flex items-center gap-1 truncate">
-                            <MapPin className="w-3.5 h-3.5 text-[#0D9488]/70 shrink-0" />
+                            <MapPin className="w-3.5 h-3.5 text-[#008080]/70 shrink-0" />
                             <span className="truncate">{locationText}</span>
                           </p>
                         )}

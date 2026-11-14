@@ -82,6 +82,7 @@ interface MarketplaceFeedProps {
   isLoading?: boolean;
   feedError?: { message: string; code?: string } | null;
   onRetryFetch?: () => void;
+  onRefresh?: () => Promise<void> | void;
   lang?: 'ar' | 'en';
 }
 
@@ -91,7 +92,7 @@ const AdCardImage: React.FC<{ src?: string; alt: string }> = ({ src, alt }) => {
 
   if (!src || failed) {
     return (
-      <div className="w-full h-full bg-[#FFE4C4]/70 flex items-center justify-center">
+      <div className="w-full h-full bg-[#EDC9AF]/70 flex items-center justify-center">
         <ImageIcon className="w-7 h-7 text-[#C69363]" />
       </div>
     );
@@ -134,6 +135,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
   isLoading = false,
   feedError = null,
   onRetryFetch,
+  onRefresh,
   lang = 'ar'
 }) => {
   const isAr = lang === 'ar';
@@ -147,9 +149,16 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
   const [isSortMenuOpen, setIsSortMenuOpen] = useState<boolean>(false);
   const [isLocationBannerDismissed, setIsLocationBannerDismissed] = useState<boolean>(false);
   const [poppedCardId, setPoppedCardId] = useState<string | null>(null);
+  const [pullDistance, setPullDistance] = useState<number>(0);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const categoryMenuRef = React.useRef<HTMLDivElement>(null);
   const adTypeMenuRef = React.useRef<HTMLDivElement>(null);
   const sortMenuRef = React.useRef<HTMLDivElement>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+  const touchStartXRef = React.useRef<number | null>(null);
+  const isPullEligibleRef = React.useRef<boolean>(false);
+  const PULL_THRESHOLD = 62;
+  const MAX_PULL_DISTANCE = 92;
 
   useEffect(() => {
     if (!isCategoryMenuOpen && !isAdTypeMenuOpen && !isSortMenuOpen) return;
@@ -415,13 +424,105 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
     }
   };
 
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (isRefreshing || !onRefresh) return;
+    if (isCategoryMenuOpen || isAdTypeMenuOpen || isSortMenuOpen) return;
+    if (window.scrollY <= 2 && e.touches.length === 1) {
+      touchStartYRef.current = e.touches[0].clientY;
+      touchStartXRef.current = e.touches[0].clientX;
+      isPullEligibleRef.current = true;
+    } else {
+      isPullEligibleRef.current = false;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPullEligibleRef.current || isRefreshing || touchStartYRef.current === null || touchStartXRef.current === null) {
+      return;
+    }
+    if (window.scrollY > 4) {
+      isPullEligibleRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const dy = e.touches[0].clientY - touchStartYRef.current;
+    const dx = Math.abs(e.touches[0].clientX - touchStartXRef.current);
+
+    if (dy > 8 && dy > dx * 1.15) {
+      const damped = Math.min(MAX_PULL_DISTANCE, (dy - 8) * 0.45);
+      setPullDistance(damped);
+    } else if (dy <= 0) {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!isPullEligibleRef.current) {
+      touchStartYRef.current = null;
+      touchStartXRef.current = null;
+      return;
+    }
+
+    isPullEligibleRef.current = false;
+    touchStartYRef.current = null;
+    touchStartXRef.current = null;
+
+    if (pullDistance >= PULL_THRESHOLD && onRefresh && !isRefreshing) {
+      setIsRefreshing(true);
+      setPullDistance(52);
+      try {
+        await Promise.resolve(onRefresh());
+      } finally {
+        window.setTimeout(() => {
+          setIsRefreshing(false);
+          setPullDistance(0);
+        }, 280);
+      }
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const pullProgress = Math.min(1, pullDistance / PULL_THRESHOLD);
+  const showPullIndicator = pullDistance > 6 || isRefreshing;
+
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-4">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      className="w-full max-w-6xl mx-auto px-4 py-5 space-y-4 touch-pan-y"
+    >
+      {/* Mobile Pull-to-Refresh Indicator */}
+      <div
+        aria-live="polite"
+        style={{
+          height: showPullIndicator ? `${Math.max(46, Math.round(pullDistance))}px` : '0px',
+          opacity: showPullIndicator ? Math.min(1, pullProgress + (isRefreshing ? 1 : 0.25)) : 0,
+        }}
+        className="overflow-hidden transition-[height,opacity] duration-200 ease-out flex items-center justify-center"
+      >
+        <div className="px-4 py-1.5 rounded-2xl bg-white/95 border border-[#D9AF91] shadow-[0_4px_14px_rgba(0,128,128,0.12)] inline-flex items-center gap-2 text-xs font-bold text-[#006666]">
+          <RefreshCw
+            style={!isRefreshing ? { transform: `rotate(${Math.round(pullProgress * 220)}deg)` } : undefined}
+            className={`w-4 h-4 text-[#008080] shrink-0 ${isRefreshing ? 'animate-spin' : 'transition-transform duration-75'}`}
+          />
+          <span>
+            {isRefreshing
+              ? (isAr ? 'جاري تحديث الإعلانات...' : 'Refreshing ads...')
+              : pullDistance >= PULL_THRESHOLD
+              ? (isAr ? 'اترك للتحديث الآن' : 'Release to refresh')
+              : (isAr ? 'اسحب للأسفل لتحديث الإعلانات' : 'Pull down to refresh')}
+          </span>
+        </div>
+      </div>
       {/* Sleek Non-Intrusive User Geolocation Banner */}
       {onRequestLocation && (!userLocation && !isLocationBannerDismissed ? (
-        <div className="animate-fade-in px-3.5 py-2.5 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.07)] flex items-center justify-between gap-2.5">
+        <div className="animate-fade-in px-3.5 py-2.5 rounded-2xl bg-white border border-[#D9AF91] shadow-[0_2px_10px_rgba(180,120,60,0.07)] flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-200/80 text-[#0D9488] flex items-center justify-center shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-teal-50 border border-teal-200/80 text-[#008080] flex items-center justify-center shrink-0">
               <Navigation className="w-4 h-4" />
             </div>
             <p className="text-xs font-semibold text-[#1E293B] leading-snug">
@@ -445,7 +546,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                 type="button"
                 disabled={isLocatingUser}
                 onClick={onRequestLocation}
-                className="group min-h-[34px] px-3 py-1 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 disabled:opacity-60 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs"
+                className="group min-h-[34px] px-3 py-1 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 disabled:opacity-60 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-2xs"
               >
                 {isLocatingUser ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -459,7 +560,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               type="button"
               onClick={() => setIsLocationBannerDismissed(true)}
               aria-label={isAr ? 'إخفاء' : 'Dismiss'}
-              className="p-1.5 rounded-lg text-[#64748B] hover:text-[#1E293B] hover:bg-[#FFE4C4]/70 transition-colors"
+              className="p-1.5 rounded-lg text-[#64748B] hover:text-[#1E293B] hover:bg-[#EDC9AF]/70 transition-colors"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -467,8 +568,8 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
         </div>
       ) : userLocation ? (
         <div className="animate-fade-in px-3.5 py-2 rounded-2xl bg-teal-50/90 border border-teal-200/80 flex items-center justify-between gap-2 text-xs">
-          <span className="inline-flex items-center gap-1.5 text-[#0F766E] font-bold min-w-0">
-            <Navigation className="w-3.5 h-3.5 text-[#0D9488] shrink-0" />
+          <span className="inline-flex items-center gap-1.5 text-[#006666] font-bold min-w-0">
+            <Navigation className="w-3.5 h-3.5 text-[#008080] shrink-0" />
             <span className="truncate">
               {isAr
                 ? 'الموقع مفعّل • تُعرض المسافة على الإعلانات المتاحة'
@@ -479,7 +580,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             <button
               type="button"
               onClick={() => setSortBy('nearest')}
-              className="shrink-0 px-2.5 py-1 rounded-lg bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-[11px] font-bold transition-all"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-[#008080] hover:bg-[#006666] active:scale-95 text-white text-[11px] font-bold transition-all"
             >
               {isAr ? 'رتّب بالأقرب' : 'Sort Nearest'}
             </button>
@@ -488,7 +589,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               type="button"
               onClick={onRequestLocation}
               disabled={isLocatingUser}
-              className="shrink-0 px-2.5 py-1 rounded-lg bg-white hover:bg-[#FFE4C4]/60 border border-teal-200 text-[#0F766E] text-[11px] font-bold inline-flex items-center gap-1 transition-all"
+              className="shrink-0 px-2.5 py-1 rounded-lg bg-white hover:bg-[#EDC9AF]/60 border border-teal-200 text-[#006666] text-[11px] font-bold inline-flex items-center gap-1 transition-all"
             >
               {isLocatingUser && <Loader2 className="w-3 h-3 animate-spin" />}
               <span>{isAr ? 'تحديث' : 'Refresh'}</span>
@@ -500,13 +601,13 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
       {/* Search + Compact Single-Row Dropdown Controls (Type, Category, Area, Sort) */}
       <div className="space-y-2.5">
         <div className="relative flex-1 min-w-0">
-          <Search className="w-4 h-4 text-[#0D9488]/70 absolute right-4 top-3.5 pointer-events-none" />
+          <Search className="w-4 h-4 text-[#008080]/70 absolute right-4 top-3.5 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder={isAr ? 'ابحث بالعنوان أو التصنيف أو الحي...' : 'Search by title, category, or area...'}
-            className="w-full h-[42px] pr-11 pl-10 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.08)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:border-transparent transition-all duration-200"
+            className="w-full h-[42px] pr-11 pl-10 rounded-2xl bg-white border border-[#D9AF91] shadow-[0_2px_10px_rgba(180,120,60,0.08)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#008080] focus:border-transparent transition-all duration-200"
           />
           {searchQuery && (
             <button
@@ -535,8 +636,8 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               aria-expanded={isAdTypeMenuOpen}
               className={`group w-full sm:w-auto min-h-[42px] px-3 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center justify-between gap-1.5 whitespace-nowrap ${
                 selectedAdType !== 'all'
-                  ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
+                  ? 'bg-[#008080] text-white shadow-[0_4px_12px_rgba(0,128,128,0.22)]'
+                  : 'bg-white text-[#1E293B] border border-[#D9AF91] hover:border-[#C89875] hover:bg-[#EDC9AF]/70 hover:text-[#006666] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
               }`}
             >
               <span className="inline-flex items-center gap-1.5 min-w-0">
@@ -544,7 +645,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                     selectedAdType !== 'all'
                       ? 'text-white scale-110'
-                      : 'text-[#0D9488] group-hover:scale-110'
+                      : 'text-[#008080] group-hover:scale-110'
                   }`}
                 />
                 <span className="truncate">
@@ -563,7 +664,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             {isAdTypeMenuOpen && (
               <div
                 role="listbox"
-                className="animate-fade-in absolute top-full mt-2 start-0 w-52 z-50 bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_14px_34px_rgba(13,148,136,0.18)] overflow-hidden py-1.5"
+                className="animate-fade-in absolute top-full mt-2 start-0 w-52 z-50 bg-white rounded-2xl border border-[#D9AF91] shadow-[0_14px_34px_rgba(0,128,128,0.18)] overflow-hidden py-1.5"
               >
                 {adTypeOptions.map(({ id, labelAr, labelEn, Icon }) => {
                   const active = selectedAdType === id;
@@ -577,15 +678,15 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                       }}
                       className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
                         active
-                          ? 'bg-teal-50 text-[#0F766E] font-bold'
-                          : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                          ? 'bg-teal-50 text-[#006666] font-bold'
+                          : 'text-[#1E293B] hover:bg-[#EDC9AF]/55 font-medium'
                       }`}
                     >
                       <span className="inline-flex items-center gap-2.5">
-                        <Icon className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                        <Icon className="w-4 h-4 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
                         <span>{isAr ? labelAr : labelEn}</span>
                       </span>
-                      {active && <Check className="w-4 h-4 text-[#0D9488]" />}
+                      {active && <Check className="w-4 h-4 text-[#008080]" />}
                     </button>
                   );
                 })}
@@ -608,8 +709,8 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                 selectedCategory === 'favorites'
                   ? 'bg-rose-500 text-white shadow-[0_4px_12px_rgba(244,63,94,0.24)]'
                   : selectedCategory !== 'all'
-                  ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
+                  ? 'bg-[#008080] text-white shadow-[0_4px_12px_rgba(0,128,128,0.22)]'
+                  : 'bg-white text-[#1E293B] border border-[#D9AF91] hover:border-[#C89875] hover:bg-[#EDC9AF]/70 hover:text-[#006666] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
               }`}
             >
               <span className="inline-flex items-center gap-1.5 min-w-0">
@@ -617,7 +718,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                     selectedCategory !== 'all'
                       ? 'text-white scale-110'
-                      : 'text-[#0D9488] group-hover:scale-110 group-hover:-rotate-6'
+                      : 'text-[#008080] group-hover:scale-110 group-hover:-rotate-6'
                   } ${selectedCategory === 'favorites' ? 'fill-white' : ''}`}
                 />
                 <span className="truncate">
@@ -634,7 +735,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             {isCategoryMenuOpen && (
               <div
                 role="listbox"
-                className="animate-fade-in absolute top-full mt-2 end-0 sm:start-0 sm:end-auto w-64 z-50 bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_14px_34px_rgba(13,148,136,0.18)] overflow-hidden py-1.5 max-h-80 overflow-y-auto"
+                className="animate-fade-in absolute top-full mt-2 end-0 sm:start-0 sm:end-auto w-64 z-50 bg-white rounded-2xl border border-[#D9AF91] shadow-[0_14px_34px_rgba(0,128,128,0.18)] overflow-hidden py-1.5 max-h-80 overflow-y-auto"
               >
                 {/* All Categories */}
                 <button
@@ -645,15 +746,15 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   }}
                   className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
                     selectedCategory === 'all'
-                      ? 'bg-teal-50 text-[#0F766E] font-bold'
-                      : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                      ? 'bg-teal-50 text-[#006666] font-bold'
+                      : 'text-[#1E293B] hover:bg-[#EDC9AF]/55 font-medium'
                   }`}
                 >
                   <span className="inline-flex items-center gap-2.5">
-                    <LayoutGrid className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                    <LayoutGrid className="w-4 h-4 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
                     <span>{isAr ? 'الكل' : 'All Categories'}</span>
                   </span>
-                  {selectedCategory === 'all' && <Check className="w-4 h-4 text-[#0D9488]" />}
+                  {selectedCategory === 'all' && <Check className="w-4 h-4 text-[#008080]" />}
                 </button>
 
                 {/* Favorites */}
@@ -685,7 +786,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   </span>
                 </button>
 
-                <div className="my-1 border-t border-[#FFE4C4]" />
+                <div className="my-1 border-t border-[#EDC9AF]" />
 
                 {/* All 9 Marketplace Categories with Lucide Icons */}
                 {CATEGORIES.map((cat) => {
@@ -701,15 +802,15 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                       }}
                       className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
                         active
-                          ? 'bg-teal-50 text-[#0F766E] font-bold'
-                          : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                          ? 'bg-teal-50 text-[#006666] font-bold'
+                          : 'text-[#1E293B] hover:bg-[#EDC9AF]/55 font-medium'
                       }`}
                     >
                       <span className="inline-flex items-center gap-2.5">
-                        <CatIcon className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
+                        <CatIcon className="w-4 h-4 text-[#008080] transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                         <span>{isAr ? cat.nameAr : cat.nameEn}</span>
                       </span>
-                      {active && <Check className="w-4 h-4 text-[#0D9488]" />}
+                      {active && <Check className="w-4 h-4 text-[#008080]" />}
                     </button>
                   );
                 })}
@@ -740,13 +841,13 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               aria-expanded={isSortMenuOpen}
               className={`group w-full sm:w-auto min-h-[42px] px-3 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center justify-between gap-1.5 whitespace-nowrap ${
                 sortBy !== 'newest'
-                  ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
+                  ? 'bg-[#008080] text-white shadow-[0_4px_12px_rgba(0,128,128,0.22)]'
+                  : 'bg-white text-[#1E293B] border border-[#D9AF91] hover:border-[#C89875] hover:bg-[#EDC9AF]/70 hover:text-[#006666] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
               }`}
             >
               <span className="inline-flex items-center gap-1.5 min-w-0">
                 {sortBy === 'newest' ? (
-                  <ArrowUpDown className="w-4 h-4 shrink-0 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                  <ArrowUpDown className="w-4 h-4 shrink-0 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
                 ) : (
                   <ActiveSortIcon className="w-4 h-4 shrink-0 text-white scale-110 transition-transform duration-200" />
                 )}
@@ -766,9 +867,9 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             {isSortMenuOpen && (
               <div
                 role="listbox"
-                className="animate-fade-in absolute top-full mt-2 end-0 w-56 z-50 bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_14px_34px_rgba(13,148,136,0.18)] overflow-hidden py-1.5"
+                className="animate-fade-in absolute top-full mt-2 end-0 w-56 z-50 bg-white rounded-2xl border border-[#D9AF91] shadow-[0_14px_34px_rgba(0,128,128,0.18)] overflow-hidden py-1.5"
               >
-                <div className="px-3.5 py-1.5 text-[11px] font-extrabold text-[#64748B] border-b border-[#FFE4C4]">
+                <div className="px-3.5 py-1.5 text-[11px] font-extrabold text-[#64748B] border-b border-[#EDC9AF]">
                   {isAr ? 'ترتيب حسب' : 'Sort By'}
                 </div>
                 {sortOptions.map(({ id, labelAr, labelEn, Icon }) => {
@@ -780,15 +881,15 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                       onClick={() => handleSelectSort(id)}
                       className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
                         active
-                          ? 'bg-teal-50 text-[#0F766E] font-bold'
-                          : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                          ? 'bg-teal-50 text-[#006666] font-bold'
+                          : 'text-[#1E293B] hover:bg-[#EDC9AF]/55 font-medium'
                       }`}
                     >
                       <span className="inline-flex items-center gap-2.5">
-                        <Icon className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                        <Icon className="w-4 h-4 text-[#008080] transition-transform duration-200 group-hover:scale-110" />
                         <span>{isAr ? labelAr : labelEn}</span>
                       </span>
-                      {active && <Check className="w-4 h-4 text-[#0D9488]" />}
+                      {active && <Check className="w-4 h-4 text-[#008080]" />}
                     </button>
                   );
                 })}
@@ -827,31 +928,46 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
 
       {/* Newly Published Confirmation */}
       {newlyPublishedId && (
-        <div className="animate-toast-in px-4 py-3 rounded-2xl bg-teal-50/90 border border-teal-200 text-[#0F766E] text-xs font-semibold flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-[#0D9488] shrink-0" />
+        <div className="animate-toast-in px-4 py-3 rounded-2xl bg-teal-50/90 border border-teal-200 text-[#006666] text-xs font-semibold flex items-center gap-2">
+          <CheckCircle2 className="w-4 h-4 text-[#008080] shrink-0" />
           <span>{isAr ? 'تم نشر إعلانك بنجاح' : 'Post published successfully'}</span>
         </div>
       )}
 
-      {/* Soft Skeleton Shimmer Loaders */}
+      {/* Pulsing & Shimmering Ad Card Skeleton Loaders (Desert Sand / Light Gray Tints) */}
       {isLoading && listings.length === 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+        <div
+          aria-busy="true"
+          aria-label={isAr ? 'جاري تحميل الإعلانات' : 'Loading ads'}
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5"
+        >
           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
             <div
               key={n}
-              className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden"
+              className="bg-white rounded-2xl border border-[#D9AF91]/75 overflow-hidden shadow-[0_3px_12px_rgba(180,120,60,0.06)] flex flex-col"
             >
-              <div className="aspect-[4/3] skeleton-shimmer" />
-              <div className="p-3.5 space-y-2.5">
-                <div className="h-4 skeleton-shimmer rounded-lg w-4/5" />
-                <div className="h-4 skeleton-shimmer rounded-lg w-1/2" />
-                <div className="h-3 skeleton-shimmer rounded-lg w-1/3" />
+              <div className="aspect-[4/3] skeleton-shimmer bg-[#F3F4F6]" />
+              <div className="p-3.5 sm:p-4 space-y-3 flex-1 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="h-3.5 skeleton-shimmer rounded-lg w-11/12" />
+                  <div className="h-3.5 skeleton-shimmer rounded-lg w-3/5" />
+                </div>
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="h-4 skeleton-shimmer rounded-lg w-2/5" />
+                    <div className="h-4 skeleton-shimmer rounded-lg w-1/4" />
+                  </div>
+                  <div className="pt-2 border-t border-[#EDC9AF]/65 flex items-center justify-between gap-2">
+                    <div className="h-4 skeleton-shimmer rounded-md w-2/5" />
+                    <div className="h-4 skeleton-shimmer rounded-md w-1/3" />
+                  </div>
+                </div>
               </div>
             </div>
           ))}
         </div>
       ) : filteredListings.length === 0 ? (
-        <div className="animate-fade-in py-16 px-6 text-center bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_3px_14px_rgba(180,120,60,0.08)] space-y-4">
+        <div className="animate-fade-in py-16 px-6 text-center bg-white rounded-2xl border border-[#D9AF91] shadow-[0_3px_14px_rgba(180,120,60,0.08)] space-y-4">
           {selectedCategory === 'favorites' ? (
             <>
               <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center mx-auto">
@@ -869,7 +985,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   setSelectedCategory('all');
                   setSelectedArea('all');
                 }}
-                className="group min-h-[42px] px-5 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
+                className="group min-h-[42px] px-5 py-2.5 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
               >
                 <LayoutGrid className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
                 <span>{isAr ? 'تصفح الإعلانات' : 'Browse Ads'}</span>
@@ -886,7 +1002,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                 <button
                   type="button"
                   onClick={onOpenCreate}
-                  className="group min-h-[42px] px-5 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
+                  className="group min-h-[42px] px-5 py-2.5 rounded-xl bg-[#008080] hover:bg-[#006666] active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
                 >
                   <Plus className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
                   <span>{isAr ? 'أضف أول إعلان' : 'Add First Post'}</span>
@@ -938,21 +1054,21 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectListing(item)}
-                className={`group bg-white rounded-2xl overflow-hidden border cursor-pointer transition-all duration-200 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.16)] hover:border-[#D9AD82] hover:-translate-y-1 active:scale-[0.98] flex flex-col ${
+                className={`group bg-white rounded-2xl overflow-hidden border cursor-pointer transition-all duration-200 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(0,128,128,0.16)] hover:border-[#C89875] hover:-translate-y-1 active:scale-[0.98] flex flex-col ${
                   isHighlighted
-                    ? 'border-[#0D9488] ring-2 ring-[#14B8A6]/30'
-                    : 'border-[#E8C5A0]/80'
+                    ? 'border-[#008080] ring-2 ring-[#009999]/30'
+                    : 'border-[#D9AF91]/80'
                 } ${item.isSoldOut ? 'opacity-80 hover:opacity-100' : ''}`}
               >
                 {/* 1. Product Image + Sold Out Ribbon + Floating Heart Bookmark */}
-                <div className="relative aspect-[4/3] bg-[#FFE4C4]/50 overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-[4/3] bg-[#EDC9AF]/50 overflow-hidden flex items-center justify-center">
                   <div className={`w-full h-full ${item.isSoldOut ? 'grayscale-[25%]' : ''}`}>
                     <AdCardImage src={cardImg} alt={item.title || 'منتج'} />
                   </div>
 
                   {isRep && (
-                    <span className="absolute top-2.5 right-2.5 z-10 px-2 py-1 rounded-lg bg-white/95 backdrop-blur-xs text-[#0F766E] border border-teal-200/90 shadow-xs text-[10px] font-extrabold inline-flex items-center gap-1">
-                      <Handshake className="w-3 h-3 text-[#0D9488]" />
+                    <span className="absolute top-2.5 right-2.5 z-10 px-2 py-1 rounded-lg bg-white/95 backdrop-blur-xs text-[#006666] border border-teal-200/90 shadow-xs text-[10px] font-extrabold inline-flex items-center gap-1">
+                      <Handshake className="w-3 h-3 text-[#008080]" />
                       <span>{isAr ? 'بواسطة مندوب' : 'Via Rep'}</span>
                     </span>
                   )}
@@ -960,7 +1076,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   {item.isSoldOut && (
                     <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center pointer-events-none">
                       <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-xs text-white text-xs font-extrabold border border-white/15 shadow-sm inline-flex items-center gap-1.5">
-                        <PackageX className="w-3.5 h-3.5 text-[#FFE4C4]" />
+                        <PackageX className="w-3.5 h-3.5 text-[#EDC9AF]" />
                         <span>{isAr ? 'نفدت الكمية' : 'Sold Out'}</span>
                       </span>
                     </div>
@@ -977,7 +1093,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                     className={`absolute top-2.5 left-2.5 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xs shadow-xs transition-all duration-200 active:scale-125 ${
                       isFav
                         ? 'bg-white/95 text-rose-500 border border-rose-200/80'
-                        : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#E8C5A0]/80'
+                        : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#D9AF91]/80'
                     } ${isPopping ? 'animate-heart-pop' : ''}`}
                   >
                     <Heart
@@ -998,7 +1114,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       {/* 3. Price */}
-                      <p className="text-sm sm:text-base font-extrabold text-[#0F766E] tabular-nums">
+                      <p className="text-sm sm:text-base font-extrabold text-[#006666] tabular-nums">
                         {item.hidePrice
                           ? (isAr ? 'عند التواصل' : 'Contact')
                           : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
@@ -1011,9 +1127,9 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                             e.stopPropagation();
                             onOpenStore(item.storeId!);
                           }}
-                          className="group/store inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-teal-50/90 hover:bg-teal-100/90 active:scale-95 text-[#0F766E] border border-teal-200/75 text-[10px] font-bold transition-all"
+                          className="group/store inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-teal-50/90 hover:bg-teal-100/90 active:scale-95 text-[#006666] border border-teal-200/75 text-[10px] font-bold transition-all"
                         >
-                          <Store className="w-3 h-3 shrink-0 text-[#0D9488] transition-transform duration-200 group-hover/store:scale-110" />
+                          <Store className="w-3 h-3 shrink-0 text-[#008080] transition-transform duration-200 group-hover/store:scale-110" />
                           <span className="truncate max-w-[95px]">{item.storeName}</span>
                         </button>
                       )}
@@ -1025,33 +1141,33 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                             e.stopPropagation();
                             onOpenRepresentative(String(item.sellerId!));
                           }}
-                          className="group/rep inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-[#FFE4C4]/80 hover:bg-[#FFE4C4] active:scale-95 text-[#7C4A21] border border-[#E8C5A0] text-[10px] font-bold transition-all"
+                          className="group/rep inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-[#EDC9AF]/80 hover:bg-[#EDC9AF] active:scale-95 text-[#6B3F21] border border-[#D9AF91] text-[10px] font-bold transition-all"
                         >
-                          <Handshake className="w-3 h-3 shrink-0 text-[#0D9488] transition-transform duration-200 group-hover/rep:scale-110" />
+                          <Handshake className="w-3 h-3 shrink-0 text-[#008080] transition-transform duration-200 group-hover/rep:scale-110" />
                           <span className="truncate">{isAr ? 'تصفح ركن المندوب' : 'Rep Corner'}</span>
                         </button>
                       )}
                     </div>
 
                     {/* 4. Neighborhood + GPS Distance + Handover Badge + Posting Date Footer */}
-                    <div className="pt-2 border-t border-[#FFE4C4] space-y-1.5 text-[10px] sm:text-[11px]">
+                    <div className="pt-2 border-t border-[#EDC9AF] space-y-1.5 text-[10px] sm:text-[11px]">
                       <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFE4C4] text-[#0F766E] border border-[#E8C5A0] font-semibold truncate min-w-0 max-w-[58%]">
-                          <MapPin className="w-3 h-3 text-[#0D9488] shrink-0" />
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#EDC9AF] text-[#006666] border border-[#D9AF91] font-semibold truncate min-w-0 max-w-[58%]">
+                          <MapPin className="w-3 h-3 text-[#008080] shrink-0" />
                           <span className="truncate">{locationBadgeText}</span>
                         </span>
 
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg font-bold shrink-0 ${
                             isDelivery
-                              ? 'bg-teal-50 text-[#0F766E] border border-teal-200/80'
-                              : 'bg-[#FFE4C4]/65 text-[#7C4A21] border border-[#E8C5A0]'
+                              ? 'bg-teal-50 text-[#006666] border border-teal-200/80'
+                              : 'bg-[#EDC9AF]/65 text-[#6B3F21] border border-[#D9AF91]'
                           }`}
                         >
                           {isDelivery ? (
-                            <Truck className="w-3 h-3 text-[#0D9488] shrink-0" />
+                            <Truck className="w-3 h-3 text-[#008080] shrink-0" />
                           ) : (
-                            <MapPin className="w-3 h-3 text-[#7C4A21] shrink-0" />
+                            <MapPin className="w-3 h-3 text-[#6B3F21] shrink-0" />
                           )}
                           <span>
                             {isDelivery
@@ -1063,8 +1179,8 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
 
                       <div className="flex items-center justify-between gap-1.5">
                         {distanceKm !== undefined ? (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-teal-50/90 text-[#0F766E] border border-teal-200/75 font-bold tabular-nums">
-                            <Navigation className="w-2.5 h-2.5 text-[#0D9488] shrink-0" />
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-teal-50/90 text-[#006666] border border-teal-200/75 font-bold tabular-nums">
+                            <Navigation className="w-2.5 h-2.5 text-[#008080] shrink-0" />
                             <span>{formatDistanceAwayLabel(distanceKm, isAr)}</span>
                           </span>
                         ) : (

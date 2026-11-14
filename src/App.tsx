@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   Plus,
   User,
@@ -53,6 +53,7 @@ import {
   BrowserInstallPromptBar,
 } from './components/common/PWAControls';
 import { ExitConfirmationModal } from './components/common/ExitConfirmationModal';
+import { LaunchSplashScreen } from './components/common/LaunchSplashScreen';
 
 export default function App() {
   const [lang] = useState<'ar' | 'en'>('ar');
@@ -93,7 +94,16 @@ export default function App() {
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<(() => void) | null>(null);
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
+  const [showLaunchSplash, setShowLaunchSplash] = useState<boolean>(true);
+  const [headerLogoFailed, setHeaderLogoFailed] = useState<boolean>(false);
   const isExitingAppRef = useRef<boolean>(false);
+  const savedFeedScrollYRef = useRef<number>(0);
+  const shouldRestoreFeedScrollRef = useRef<boolean>(false);
+  const pendingSharedAdIdRef = useRef<string | null>(null);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowLaunchSplash(false);
+  }, []);
 
   // Browser geolocation for distance badges & Nearest sorting
   const [userLocation, setUserLocation] = useState<GeoCoords | null>(null);
@@ -256,11 +266,15 @@ export default function App() {
     loadPublicPosts();
     loadPublicStores();
 
-    // Check for deep-linked storefront (?store=STORE_ID) or representative corner (?rep=USER_ID)
+    // Check for deep-linked storefront (?store=STORE_ID), representative corner (?rep=USER_ID), or shared ad (?ad=POST_ID)
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const sharedStoreId = urlParams.get('store');
       const sharedRepId = urlParams.get('rep');
+      const sharedAdId = urlParams.get('ad');
+      if (sharedAdId) {
+        pendingSharedAdIdRef.current = sharedAdId;
+      }
       if (sharedStoreId) {
         setIsResolvingSharedStore(true);
         fetchStoreById(sharedStoreId)
@@ -448,7 +462,46 @@ export default function App() {
     }
   };
 
+  useEffect(() => {
+    if (!pendingSharedAdIdRef.current || listings.length === 0) return;
+    const match = listings.find((item) => String(item.id) === String(pendingSharedAdIdRef.current));
+    if (match) {
+      pendingSharedAdIdRef.current = null;
+      setSelectedListing(match);
+    }
+  }, [listings]);
+
+  useEffect(() => {
+    if (currentView === 'feed' && shouldRestoreFeedScrollRef.current) {
+      shouldRestoreFeedScrollRef.current = false;
+      const targetY = savedFeedScrollYRef.current;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: targetY, behavior: 'auto' });
+      });
+    }
+  }, [currentView]);
+
+  const handleOpenListingFromFeed = (item: Listing) => {
+    if (currentView === 'feed') {
+      savedFeedScrollYRef.current = window.scrollY;
+    }
+    setSelectedListing(item);
+  };
+
+  const handleCloseSelectedListing = () => {
+    const restoreY = currentView === 'feed' ? savedFeedScrollYRef.current : null;
+    setSelectedListing(null);
+    if (restoreY !== null) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: restoreY, behavior: 'auto' });
+      });
+    }
+  };
+
   const openStorefrontView = (store: StoreProfile, returnTo: 'feed' | 'stores' = 'stores') => {
+    if (currentView === 'feed' && !selectedListing) {
+      savedFeedScrollYRef.current = window.scrollY;
+    }
     setSelectedRepId(null);
     setStoreReturnView(returnTo);
     setSelectedStore(store);
@@ -459,11 +512,17 @@ export default function App() {
 
   const handleCloseStorefront = () => {
     setSelectedStore(null);
+    if (storeReturnView === 'feed') {
+      shouldRestoreFeedScrollRef.current = true;
+    }
     setCurrentView(storeReturnView);
     syncEntityQueryParams({});
   };
 
   const openRepresentativeCorner = (repId: string, returnTo: 'feed' | 'stores' = 'feed') => {
+    if (currentView === 'feed' && !selectedListing) {
+      savedFeedScrollYRef.current = window.scrollY;
+    }
     setSelectedStore(null);
     setRepReturnView(returnTo);
     setSelectedRepId(repId);
@@ -474,6 +533,9 @@ export default function App() {
 
   const handleCloseRepresentativeCorner = () => {
     setSelectedRepId(null);
+    if (repReturnView === 'feed') {
+      shouldRestoreFeedScrollRef.current = true;
+    }
     setCurrentView(repReturnView);
     syncEntityQueryParams({});
   };
@@ -532,16 +594,23 @@ export default function App() {
       } else if (ctx.hasChatListing) {
         setChatListing(null);
       } else if (ctx.hasSelectedListing) {
-        setSelectedListing(null);
+        handleCloseSelectedListing();
       } else if (ctx.currentView === 'store_detail') {
         setSelectedStore(null);
+        if (ctx.storeReturnView === 'feed') {
+          shouldRestoreFeedScrollRef.current = true;
+        }
         setCurrentView(ctx.storeReturnView);
         syncEntityQueryParams({});
       } else if (ctx.currentView === 'rep_corner') {
         setSelectedRepId(null);
+        if (ctx.repReturnView === 'feed') {
+          shouldRestoreFeedScrollRef.current = true;
+        }
         setCurrentView(ctx.repReturnView);
         syncEntityQueryParams({});
       } else if (ctx.currentView === 'create' || ctx.currentView === 'stores') {
+        shouldRestoreFeedScrollRef.current = true;
         setCurrentView('feed');
       } else {
         setShowExitModal(true);
@@ -672,42 +741,59 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen w-full max-w-full bg-[#FFE4C4] text-[#1E293B] flex flex-col ${
+      className={`min-h-screen w-full max-w-full bg-[#EDC9AF] text-[#1E293B] flex flex-col ${
         isAr ? 'text-right' : 'text-left'
       }`}
     >
+      {showLaunchSplash && <LaunchSplashScreen onComplete={handleSplashComplete} />}
+
       {/* Clean 3-Zone Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8C5A0]/80 shadow-[0_2px_12px_rgba(13,148,136,0.05)]">
+      <header className="sticky top-0 z-30 bg-[#008080]/95 backdrop-blur-md border-b border-[#006666] shadow-[0_2px_14px_rgba(0,102,102,0.18)]">
         <OfflineStatusBanner isOnline={isOnline} isAr={isAr} />
         <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 h-15 flex items-center justify-between gap-2 sm:gap-4">
-          {/* Zone 1: Brand Wordmark */}
+          {/* Zone 1: Brand Logo & Title (RTL Aligned) */}
           <button
             type="button"
             onClick={handleSelectBuy}
-            className="text-sm sm:text-lg font-extrabold tracking-tight text-[#0F766E] hover:text-[#0D9488] transition-colors whitespace-nowrap shrink-0 min-h-[40px] flex items-center"
+            className="group min-h-[40px] flex items-center gap-2 sm:gap-2.5 whitespace-nowrap shrink-0 text-[#EDC9AF] hover:opacity-90 transition-opacity"
           >
-            سوق بلحظة
+            {!headerLogoFailed ? (
+              <img
+                src="https://ik.imagekit.io/Belahda/Logo192.png?updatedAt=1794676348436"
+                alt={isAr ? 'شعار بلحظة' : 'Balahza Logo'}
+                referrerPolicy="no-referrer"
+                onError={() => setHeaderLogoFailed(true)}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-contain shrink-0 transition-transform duration-200 group-hover:scale-105"
+              />
+            ) : (
+              <span className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#006666] border border-[#EDC9AF]/40 flex items-center justify-center text-xs font-extrabold text-[#EDC9AF] shrink-0">
+                ب
+              </span>
+            )}
+            <span className="text-base sm:text-xl font-extrabold tracking-tight text-[#EDC9AF] whitespace-nowrap">
+              {isAr ? 'بلحظة' : 'Balahza'}
+            </span>
           </button>
 
           {/* Zone 2: Clean Segmented Tabs */}
           <nav
             aria-label={isAr ? 'التنقل الرئيسي' : 'Primary navigation'}
-            className="flex items-center gap-1 bg-[#FFE4C4] border border-[#E8C5A0] p-1 rounded-xl shrink-0"
+            className="flex items-center gap-1 bg-[#006666]/85 border border-[#EDC9AF]/25 p-1 rounded-xl shrink-0"
           >
             <button
               type="button"
               onClick={handleSelectBuy}
               className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'feed'
-                  ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-white/60 hover:text-[#0F766E]'
+                  ? 'bg-[#EDC9AF] text-[#005252] shadow-xs'
+                  : 'text-[#EDC9AF]/90 hover:bg-white/10 hover:text-white'
               }`}
             >
               <ShoppingBag
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform duration-200 ${
                   currentView === 'feed'
-                    ? 'text-white scale-105'
-                    : 'text-[#0D9488] group-hover:scale-110 group-hover:-rotate-6'
+                    ? 'text-[#005252] scale-105'
+                    : 'text-[#EDC9AF] group-hover:scale-110 group-hover:-rotate-6'
                 }`}
               />
               <span>{isAr ? 'شراء' : 'Buy'}</span>
@@ -717,15 +803,15 @@ export default function App() {
               onClick={handleSelectStoresTab}
               className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'stores'
-                  ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-white/60 hover:text-[#0F766E]'
+                  ? 'bg-[#EDC9AF] text-[#005252] shadow-xs'
+                  : 'text-[#EDC9AF]/90 hover:bg-white/10 hover:text-white'
               }`}
             >
               <Store
                 className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform duration-200 ${
                   currentView === 'stores'
-                    ? 'text-white scale-105'
-                    : 'text-[#0D9488] group-hover:scale-110 group-hover:rotate-3'
+                    ? 'text-[#005252] scale-105'
+                    : 'text-[#EDC9AF] group-hover:scale-110 group-hover:rotate-3'
                 }`}
               />
               <span>{isAr ? 'المتاجر' : 'Stores'}</span>
@@ -745,9 +831,9 @@ export default function App() {
                   setShowAuthModal(true);
                 }
               }}
-              className="group min-h-[40px] px-2.5 sm:px-3.5 rounded-xl bg-white hover:bg-[#FFE4C4]/70 active:scale-95 border border-[#E8C5A0] text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
+              className="group min-h-[40px] px-2.5 sm:px-3.5 rounded-xl bg-white/12 hover:bg-white/20 active:scale-95 border border-[#EDC9AF]/35 text-xs font-semibold text-[#EDC9AF] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0"
             >
-              <User className="w-4 h-4 text-[#0D9488] shrink-0 transition-transform duration-200 group-hover:scale-110" />
+              <User className="w-4 h-4 text-[#EDC9AF] shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="truncate max-w-[72px] sm:max-w-[130px]">
                 {currentUser ? currentUser.name : (isAr ? 'دخول' : 'Sign In')}
               </span>
@@ -766,7 +852,7 @@ export default function App() {
         />
         {!supabaseConfig.isValid && (
           <div className="max-w-6xl mx-auto px-4 pt-4">
-            <div className="p-3.5 rounded-2xl bg-white border border-[#E8C5A0] text-[#7C4A21] text-xs flex items-start gap-2.5">
+            <div className="p-3.5 rounded-2xl bg-white border border-[#D9AF91] text-[#6B3F21] text-xs flex items-start gap-2.5">
               <AlertTriangle className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
               <div className="text-xs break-words" dir="ltr">
                 {supabaseConfig.message}
@@ -785,10 +871,10 @@ export default function App() {
           />
         ) : (isResolvingSharedStore && !selectedStore) || (isResolvingSharedRep && !selectedRepId) ? (
           <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-5">
-            <div className="h-44 rounded-3xl skeleton-shimmer border border-[#E8C5A0]/80" />
+            <div className="h-44 rounded-3xl skeleton-shimmer border border-[#D9AF91]/80" />
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
               {[1, 2, 3, 4].map((n) => (
-                <div key={n} className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden">
+                <div key={n} className="bg-white rounded-2xl border border-[#D9AF91]/80 overflow-hidden">
                   <div className="aspect-[4/3] skeleton-shimmer" />
                   <div className="p-3.5 space-y-2">
                     <div className="h-4 skeleton-shimmer rounded-lg w-4/5" />
@@ -850,7 +936,7 @@ export default function App() {
             currentUser={currentUser}
             favoriteIds={favoriteIds}
             onToggleFavorite={handleToggleFavorite}
-            onSelectListing={(item) => setSelectedListing(item)}
+            onSelectListing={handleOpenListingFromFeed}
             onOpenStore={(storeId) => handleOpenStoreById(storeId, 'feed')}
             onOpenRepresentative={(repId) => openRepresentativeCorner(repId, 'feed')}
             qualifiedRepIds={qualifiedRepIds}
@@ -866,6 +952,7 @@ export default function App() {
             isLoading={isFeedLoading}
             feedError={feedError}
             onRetryFetch={loadPublicPosts}
+            onRefresh={loadPublicPosts}
             lang={lang}
           />
         )}
@@ -879,7 +966,7 @@ export default function App() {
           aria-live="polite"
           className="fixed top-18 inset-x-0 z-[70] pointer-events-none flex justify-center px-4"
         >
-          <div className="animate-toast-in px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E8C5A0] shadow-[0_10px_28px_rgba(13,148,136,0.16)] flex items-center gap-2 text-xs font-bold text-[#1E293B]">
+          <div className="animate-toast-in px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-[#D9AF91] shadow-[0_10px_28px_rgba(0,128,128,0.16)] flex items-center gap-2 text-xs font-bold text-[#1E293B]">
             {appToast.kind === 'favorite' ? (
               <Heart
                 className={`w-4 h-4 shrink-0 ${
@@ -889,7 +976,7 @@ export default function App() {
                 }`}
               />
             ) : (
-              <Check className="w-4 h-4 shrink-0 text-[#0D9488] animate-heart-pop" />
+              <Check className="w-4 h-4 shrink-0 text-[#008080] animate-heart-pop" />
             )}
             <span>{appToast.message}</span>
           </div>
@@ -897,12 +984,12 @@ export default function App() {
       )}
 
       {/* Clean Minimalist Footer with Automatic Visitor Counter */}
-      <footer className={`border-t border-[#E8C5A0]/80 bg-white py-4 px-4 ${currentView !== 'create' ? 'pb-24' : ''}`}>
+      <footer className={`border-t border-[#D9AF91]/80 bg-white py-4 px-4 ${currentView !== 'create' ? 'pb-24' : ''}`}>
         <div className="w-full max-w-6xl mx-auto flex items-center justify-between gap-3 text-xs text-[#64748B]">
-          <span className="font-bold text-[#0F766E]">سوق بلحظة</span>
+          <span className="font-bold text-[#006666]">سوق بلحظة</span>
           {visitorCount !== null && (
             <span className="inline-flex items-center gap-1.5 tabular-nums text-[#1E293B] font-medium">
-              <Eye className="w-3.5 h-3.5 text-[#0D9488]" />
+              <Eye className="w-3.5 h-3.5 text-[#008080]" />
               <span>
                 {isAr
                   ? `الزوار: ${visitorCount.toLocaleString()}`
@@ -919,7 +1006,7 @@ export default function App() {
           <button
             type="button"
             onClick={handleSelectSell}
-            className="group pointer-events-auto animate-fab-glow h-12 px-7 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] hover:-translate-y-0.5 active:scale-95 text-white font-bold text-sm border border-teal-300/45 flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap"
+            className="group pointer-events-auto animate-fab-glow h-12 px-7 rounded-2xl bg-[#008080] hover:bg-[#006666] hover:-translate-y-0.5 active:scale-95 text-white font-bold text-sm border border-teal-300/45 flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap"
           >
             <Plus className="w-5 h-5 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90 group-active:rotate-90" />
             <span>{isAr ? 'أضف إعلان' : 'Add Ad'}</span>
@@ -936,7 +1023,7 @@ export default function App() {
           onToggleFavorite={handleToggleFavorite}
           onToggleSoldOut={handleToggleSoldOut}
           isUpdatingSoldOut={updatingSoldOutId === selectedListing.id}
-          onClose={() => setSelectedListing(null)}
+          onClose={handleCloseSelectedListing}
           onOpenChat={(item) => setChatListing(item)}
           onOpenStore={(storeId) =>
             handleOpenStoreById(storeId, currentView === 'stores' ? 'stores' : 'feed')

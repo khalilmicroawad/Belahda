@@ -3,7 +3,7 @@
 
 @layer base {
   :root {
-    --font-arabic: 'Azar', '29LT Azer', 'IBM Plex Sans Arabic', 'Tajawal', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-arabic: 'Azar', '29LT Azer', 'Cairo', sans-serif;
   }
 
   html,
@@ -11,6 +11,7 @@
     font-family: var(--font-arabic);
     line-height: 1.65;
     overflow-x: clip;
+    overscroll-behavior-y: contain;
     max-width: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -18,7 +19,7 @@
   }
 
   body {
-    background-color: #FFE4C4;
+    background-color: #EDC9AF;
     color: #1e293b;
     user-select: none;
   }
@@ -124,10 +125,19 @@
 
 @keyframes fabSoftGlow {
   0%, 100% {
-    box-shadow: 0 10px 26px rgba(13, 148, 136, 0.30), 0 0 0 0 rgba(20, 184, 166, 0.25);
+    box-shadow: 0 10px 26px rgba(0, 128, 128, 0.30), 0 0 0 0 rgba(0, 128, 128, 0.25);
   }
   50% {
-    box-shadow: 0 12px 32px rgba(13, 148, 136, 0.42), 0 0 0 6px rgba(20, 184, 166, 0);
+    box-shadow: 0 12px 32px rgba(0, 128, 128, 0.42), 0 0 0 6px rgba(0, 128, 128, 0);
+  }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
   }
 }
 
@@ -158,16 +168,47 @@
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(255, 228, 196, 0.7) 25%,
-    rgba(255, 250, 244, 0.95) 50%,
-    rgba(255, 228, 196, 0.7) 75%
+    rgba(237, 201, 175, 0.55) 20%,
+    rgba(243, 244, 246, 0.96) 50%,
+    rgba(237, 201, 175, 0.55) 80%
   );
   background-size: 200% 100%;
-  animation: shimmerSweep 1.5s infinite linear;
+  animation: shimmerSweep 1.5s infinite linear, skeletonPulse 1.8s ease-in-out infinite;
 }
 
 .animate-fab-glow {
   animation: fabSoftGlow 2.8s ease-in-out infinite;
+}
+
+@keyframes splashLogoIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes splashLoaderSlide {
+  0% {
+    transform: translateX(100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-splash-logo {
+  animation: splashLogoIn 580ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-splash-loader {
+  animation: splashLoaderSlide 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,13 +1,8 @@
-const CACHE_VERSION = 'balahza-shell-v1';
+const CACHE_VERSION = 'balahza-shell-v2';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/icon.svg',
-  '/pwa-192x192.png',
-  '/pwa-512x512.png',
-  '/pwa-maskable-512x512.png',
-  '/apple-touch-icon.png',
 ];
 
 self.addEventListener('install', (event) => {
