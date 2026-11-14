@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const SPLASH_LOGO_URL = 'https://ik.imagekit.io/Belahda/Logo512.png';
+const SPLASH_LOGO_URL = 'https://ik.imagekit.io/Belahda/Logo512.png?updatedAt=1794676348651&tr=f-png,w-512,h-512,c-force';
 
 interface LaunchSplashScreenProps {
   onComplete: () => void;

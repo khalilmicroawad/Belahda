@@ -86,7 +86,7 @@ export const BrowserInstallPromptBar: React.FC<BrowserInstallPromptBarProps> = (
       <div className="bg-white/95 border border-[#D9AF91] rounded-2xl px-3.5 py-2.5 shadow-xs flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <img
-            src="https://ik.imagekit.io/Belahda/Logo192.png?updatedAt=1794676348436"
+            src="https://ik.imagekit.io/Belahda/Logo192.png?updatedAt=1794676348436&tr=f-png,w-192,h-192,c-force"
             alt={isAr ? 'شعار بلحظة' : 'Balahza'}
             referrerPolicy="no-referrer"
             className="w-9 h-9 rounded-xl shrink-0 border border-[#D9AF91] object-contain bg-[#008080]"

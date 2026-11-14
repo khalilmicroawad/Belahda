@@ -759,7 +759,7 @@ export default function App() {
           >
             {!headerLogoFailed ? (
               <img
-                src="https://ik.imagekit.io/Belahda/Logo192.png?updatedAt=1794676348436"
+                src="https://ik.imagekit.io/Belahda/Logo192.png?updatedAt=1794676348436&tr=f-png,w-192,h-192,c-force"
                 alt={isAr ? 'شعار بلحظة' : 'Balahza Logo'}
                 referrerPolicy="no-referrer"
                 onError={() => setHeaderLogoFailed(true)}
