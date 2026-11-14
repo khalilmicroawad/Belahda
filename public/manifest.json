@@ -1,0 +1,35 @@
+{
+  "id": "/",
+  "name": "بلحظة - سوق الموصل",
+  "short_name": "بلحظة",
+  "description": "سوق بلحظة - تطبيق بيع وشراء فوري في مدينة الموصل مع نشر سريع وخيارات توصيل ومتاجر محلية.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#FFE4C4",
+  "theme_color": "#0D9488",
+  "categories": ["shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

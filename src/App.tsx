@@ -46,6 +46,12 @@ import { RepresentativeCornerView } from './components/stores/RepresentativeCorn
 import { ChatModal } from './components/chat/ChatModal';
 import { UserProfileModal } from './components/profile/UserProfileModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { usePWAInstall } from './hooks/usePWAInstall';
+import {
+  HeaderApkDownloadButton,
+  OfflineStatusBanner,
+  BrowserInstallPromptBar,
+} from './components/common/PWAControls';
 
 export default function App() {
   const [lang] = useState<'ar' | 'en'>('ar');
@@ -92,6 +98,13 @@ export default function App() {
   const [locationStatus, setLocationStatus] = useState<'idle' | 'granted' | 'denied' | 'unsupported'>('idle');
 
   const qualifiedRepIds = useMemo(() => getQualifiedRepresentativeIds(listings), [listings]);
+  const {
+    isStandalone,
+    isOnline,
+    canInstallBrowserPWA,
+    triggerInstall,
+    dismissPrompt,
+  } = usePWAInstall();
 
   const showToastNotification = (
     message: string,
@@ -551,12 +564,13 @@ export default function App() {
     >
       {/* Clean 3-Zone Top Navigation Bar */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8C5A0]/80 shadow-[0_2px_12px_rgba(13,148,136,0.05)]">
-        <div className="w-full max-w-6xl mx-auto px-4 h-15 flex items-center justify-between gap-4">
+        <OfflineStatusBanner isOnline={isOnline} isAr={isAr} />
+        <div className="w-full max-w-6xl mx-auto px-3 sm:px-4 h-15 flex items-center justify-between gap-2 sm:gap-4">
           {/* Zone 1: Brand Wordmark */}
           <button
             type="button"
             onClick={handleSelectBuy}
-            className="text-base sm:text-lg font-extrabold tracking-tight text-[#0F766E] hover:text-[#0D9488] transition-colors whitespace-nowrap shrink-0 min-h-[40px] flex items-center"
+            className="text-sm sm:text-lg font-extrabold tracking-tight text-[#0F766E] hover:text-[#0D9488] transition-colors whitespace-nowrap shrink-0 min-h-[40px] flex items-center"
           >
             سوق بلحظة
           </button>
@@ -604,8 +618,9 @@ export default function App() {
             </button>
           </nav>
 
-          {/* Zone 3: Account / Sign In Action */}
-          <div className="flex items-center shrink-0">
+          {/* Zone 3: APK Download (hidden in standalone APK) & Account / Sign In Action */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <HeaderApkDownloadButton isStandalone={isStandalone} isAr={isAr} />
             <button
               type="button"
               onClick={() => {
@@ -616,10 +631,10 @@ export default function App() {
                   setShowAuthModal(true);
                 }
               }}
-              className="group min-h-[40px] px-3 sm:px-3.5 rounded-xl bg-white hover:bg-[#FFE4C4]/70 active:scale-95 border border-[#E8C5A0] text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
+              className="group min-h-[40px] px-2.5 sm:px-3.5 rounded-xl bg-white hover:bg-[#FFE4C4]/70 active:scale-95 border border-[#E8C5A0] text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
             >
               <User className="w-4 h-4 text-[#0D9488] shrink-0 transition-transform duration-200 group-hover:scale-110" />
-              <span className="truncate max-w-[90px] sm:max-w-[130px]">
+              <span className="truncate max-w-[72px] sm:max-w-[130px]">
                 {currentUser ? currentUser.name : (isAr ? 'دخول' : 'Sign In')}
               </span>
             </button>
@@ -629,6 +644,12 @@ export default function App() {
 
       {/* Main Content */}
       <main className={`flex-1 w-full ${currentView !== 'create' ? 'pb-24' : 'pb-10'}`}>
+        <BrowserInstallPromptBar
+          visible={canInstallBrowserPWA && currentView !== 'create'}
+          onInstall={triggerInstall}
+          onDismiss={dismissPrompt}
+          isAr={isAr}
+        />
         {!supabaseConfig.isValid && (
           <div className="max-w-6xl mx-auto px-4 pt-4">
             <div className="p-3.5 rounded-2xl bg-white border border-[#E8C5A0] text-[#7C4A21] text-xs flex items-start gap-2.5">
