@@ -10,7 +10,9 @@ import {
   Store,
   User,
   Crosshair,
-  ExternalLink
+  ExternalLink,
+  Link2,
+  Send
 } from 'lucide-react';
 import { Listing, CategoryId, SellerType, StoreProfile, UserAccount } from '../../types';
 import { CATEGORIES } from '../../data/categories';
@@ -320,15 +322,19 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   const previewUrl = fullImageUrl || thumbnailUrl;
 
   return (
-    <div className="w-full max-w-xl mx-auto px-4 py-6">
+    <div className="w-full max-w-xl mx-auto px-4 py-6 animate-modal-up">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-[40px] px-2 -mx-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[#64748B] hover:text-[#1E293B] rounded-xl transition-colors"
+          className="group min-h-[40px] px-2 -mx-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[#64748B] hover:text-[#1E293B] rounded-xl transition-all active:scale-95"
         >
-          {isAr ? <ArrowRight className="w-4 h-4" /> : <ArrowLeft className="w-4 h-4" />}
+          {isAr ? (
+            <ArrowRight className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+          ) : (
+            <ArrowLeft className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+          )}
           <span>{isAr ? 'رجوع' : 'Back'}</span>
         </button>
 
@@ -381,10 +387,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="absolute top-2.5 left-2.5 w-9 h-9 rounded-full bg-[#1E293B]/80 hover:bg-[#1E293B] text-white flex items-center justify-center transition-colors"
+                className="group absolute top-2.5 left-2.5 w-9 h-9 rounded-full bg-[#1E293B]/80 hover:bg-[#1E293B] active:scale-90 text-white flex items-center justify-center transition-all"
                 aria-label={isAr ? 'حذف الصورة' : 'Remove image'}
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
               </button>
             </div>
           ) : (
@@ -421,40 +427,50 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           />
         </div>
 
-        {/* Ad Type: Personal vs Commercial */}
+        {/* Ad Type: Personal vs Commercial Sliding Segmented Toggle */}
         <div>
           <label className="block text-xs font-bold text-[#1E293B] mb-2">
             {isAr ? 'نوع الإعلان *' : 'Ad Type *'}
           </label>
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="relative grid grid-cols-2 p-1 rounded-2xl bg-[#FEF9E7] border border-amber-200/80">
+            <span
+              aria-hidden="true"
+              className={`absolute top-1 bottom-1 start-1 w-[calc(50%-0.25rem)] rounded-xl bg-[#0D9488] shadow-xs transition-transform duration-200 ease-out ${
+                adType === 'commercial'
+                  ? isAr
+                    ? '-translate-x-full'
+                    : 'translate-x-full'
+                  : 'translate-x-0'
+              }`}
+            />
             <button
               type="button"
               onClick={() => setAdType('personal')}
-              className={`min-h-[44px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+              className={`group relative z-10 min-h-[42px] px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors duration-200 active:scale-95 ${
                 adType === 'personal'
-                  ? 'border-[#0D9488] bg-[#0D9488] text-white shadow-xs'
-                  : 'border-amber-200/80 bg-[#FDFBF7] text-[#1E293B] hover:bg-[#FEF9E7]'
+                  ? 'text-white'
+                  : 'text-[#1E293B] hover:text-[#0F766E]'
               }`}
             >
-              <User className="w-4 h-4" />
+              <User className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
               <span>{isAr ? 'شخصي' : 'Personal'}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setAdType('commercial')}
-              className={`min-h-[44px] px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all ${
+              className={`group relative z-10 min-h-[42px] px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors duration-200 active:scale-95 ${
                 adType === 'commercial'
-                  ? 'border-[#0D9488] bg-[#0D9488] text-white shadow-xs'
-                  : 'border-amber-200/80 bg-[#FDFBF7] text-[#1E293B] hover:bg-[#FEF9E7]'
+                  ? 'text-white'
+                  : 'text-[#1E293B] hover:text-[#0F766E]'
               }`}
             >
-              <Store className="w-4 h-4" />
+              <Store className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
               <span>{isAr ? 'تجاري' : 'Commercial'}</span>
             </button>
           </div>
           {adType === 'commercial' && ownedStore && (
-            <p className="mt-2 text-xs text-[#0F766E] font-semibold">
+            <p className="mt-2 text-xs text-[#0F766E] font-semibold animate-fade-in">
               {isAr
                 ? `سيُربط الإعلان تلقائياً بمتجرك: ${ownedStore.name}`
                 : `Linked automatically to your store: ${ownedStore.name}`}
@@ -535,11 +551,14 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPasteLink((v) => !v)}
-                className="text-xs font-semibold text-[#0F766E] hover:underline"
+                className="group inline-flex items-center gap-1 text-xs font-semibold text-[#0F766E] hover:underline active:scale-95 transition-transform"
               >
-                {showPasteLink
-                  ? (isAr ? 'إخفاء الرابط' : 'Hide link')
-                  : (isAr ? 'أو لصق رابط خرائط' : 'Or paste link')}
+                <Link2 className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
+                <span>
+                  {showPasteLink
+                    ? (isAr ? 'إخفاء الرابط' : 'Hide link')
+                    : (isAr ? 'أو لصق رابط خرائط' : 'Or paste link')}
+                </span>
               </button>
             )}
           </div>
@@ -570,10 +589,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               <button
                 type="button"
                 onClick={clearLocation}
-                className="min-w-[36px] min-h-[36px] text-[#64748B] hover:text-red-600 rounded-lg flex items-center justify-center"
+                className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-red-600 rounded-lg flex items-center justify-center transition-colors"
                 aria-label={isAr ? 'إزالة الموقع' : 'Clear location'}
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
               </button>
             </div>
           ) : (
@@ -581,12 +600,12 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               type="button"
               disabled={isLocating}
               onClick={handleDetectGps}
-              className="w-full min-h-[44px] px-3.5 rounded-xl bg-[#FEF9E7]/70 hover:bg-[#FEF9E7] border border-amber-200/80 text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FEF9E7]/70 hover:bg-[#FEF9E7] active:scale-[0.98] border border-amber-200/80 text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
             >
               {isLocating ? (
                 <Loader2 className="w-4 h-4 animate-spin text-[#0D9488]" />
               ) : (
-                <Crosshair className="w-4 h-4 text-[#0D9488]" />
+                <Crosshair className="w-4 h-4 text-[#0D9488] transition-transform duration-300 group-hover:rotate-45 group-hover:scale-110" />
               )}
               <span>
                 {isLocating
@@ -630,7 +649,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         <button
           type="submit"
           disabled={isPublishing || isMediaUploading}
-          className="w-full min-h-[48px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.99] text-white font-bold text-sm shadow-[0_6px_16px_rgba(13,148,136,0.22)] transition-all flex items-center justify-center gap-2"
+          className="group w-full min-h-[48px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-sm shadow-[0_6px_16px_rgba(13,148,136,0.22)] transition-all flex items-center justify-center gap-2"
         >
           {isPublishing ? (
             <>
@@ -638,7 +657,10 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               <span>{isAr ? 'جاري النشر...' : 'Publishing...'}</span>
             </>
           ) : (
-            <span>{isAr ? 'نشر الإعلان' : 'Publish Post'}</span>
+            <>
+              <Send className="w-4 h-4 rtl:rotate-180 transition-transform duration-200 group-hover:scale-110 rtl:group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
+              <span>{isAr ? 'نشر الإعلان' : 'Publish Post'}</span>
+            </>
           )}
         </button>
       </form>

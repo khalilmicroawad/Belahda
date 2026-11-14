@@ -12,9 +12,13 @@ import {
   Loader2,
   LogIn,
   Store,
-  ExternalLink
+  ExternalLink,
+  Package,
+  PackageCheck,
+  PackageX,
+  Image as ImageIcon
 } from 'lucide-react';
-import { StoreProfile, UserAccount } from '../../types';
+import { Listing, StoreProfile, UserAccount } from '../../types';
 import { saveUserAccount, clearUserAccount } from '../../data/mockListings';
 import {
   createUserFreeStore,
@@ -28,6 +32,10 @@ const REQUIRED_COMMERCIAL_ADS = 30;
 
 interface UserProfileModalProps {
   user: UserAccount | null;
+  listings?: Listing[];
+  onToggleSoldOut?: (listing: Listing, nextSoldOut: boolean) => Promise<void> | void;
+  updatingPostId?: string | null;
+  onSelectListing?: (listing: Listing) => void;
   onUpdateUser: (user: UserAccount | null) => void;
   onOpenAuth?: () => void;
   onOpenStore?: (store: StoreProfile) => void;
@@ -38,6 +46,10 @@ interface UserProfileModalProps {
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
+  listings = [],
+  onToggleSoldOut,
+  updatingPostId = null,
+  onSelectListing,
   onUpdateUser,
   onOpenAuth,
   onOpenStore,
@@ -218,9 +230,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const progressPercent = Math.min(100, Math.round((commercialCount / REQUIRED_COMMERCIAL_ADS) * 100));
   const canUnlockStore = commercialCount >= REQUIRED_COMMERCIAL_ADS && !userStore;
 
+  const myListings = user?.id
+    ? listings.filter(
+        (item) =>
+          (item.sellerId && String(item.sellerId) === String(user.id)) ||
+          (user.customStoreId &&
+            item.storeId &&
+            String(item.storeId) === String(user.customStoreId))
+      )
+    : [];
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none text-xs">
-      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80 max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none text-xs animate-fade-in">
+      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80 max-h-[92vh] flex flex-col animate-modal-up">
         {/* Header */}
         <div className="p-4 border-b border-amber-200/70 flex items-center justify-between bg-[#FEF9E7]/80 shrink-0">
           <div className="flex items-center gap-2.5">
@@ -243,10 +265,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 flex items-center justify-center transition-colors"
+            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 active:scale-90 flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق' : 'Close'}
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
           </button>
         </div>
 
@@ -278,9 +300,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                     onClose();
                     onOpenAuth();
                   }}
-                  className="min-h-[36px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs flex items-center gap-1.5 transition-colors"
+                  className="group min-h-[36px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center gap-1.5 transition-all"
                 >
-                  <LogIn className="w-3.5 h-3.5" />
+                  <LogIn className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 rtl:group-hover:-translate-x-0.5" />
                   <span>{isAr ? 'دخول / تسجيل' : 'Sign In'}</span>
                 </button>
               )
@@ -341,10 +363,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         onClose();
                         onOpenStore(userStore);
                       }}
-                      className="min-h-[38px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white text-xs font-bold flex items-center gap-1 shrink-0 transition-colors"
+                      className="group min-h-[38px] px-3 py-1.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold flex items-center gap-1 shrink-0 transition-all"
                     >
                       <span>{isAr ? 'عرض متجري' : 'View Store'}</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
+                      <ExternalLink className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
                     </button>
                   )}
                 </div>
@@ -395,17 +417,22 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <button
                         type="submit"
                         disabled={isCreatingStore}
-                        className="flex-1 min-h-[40px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                        className="group flex-1 min-h-[40px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 disabled:opacity-60 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                       >
-                        {isCreatingStore && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        {isCreatingStore ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Store className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110" />
+                        )}
                         <span>{isAr ? 'تفعيل المتجر الآن' : 'Create Store'}</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowCreateStoreForm(false)}
-                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-amber-200 text-[#1E293B] text-xs font-semibold hover:bg-[#FEF9E7] transition-colors"
+                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-amber-200 text-[#1E293B] text-xs font-semibold hover:bg-[#FEF9E7] active:scale-95 transition-all inline-flex items-center gap-1"
                       >
-                        {isAr ? 'إلغاء' : 'Cancel'}
+                        <X className="w-3.5 h-3.5 text-[#64748B]" />
+                        <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
                       </button>
                     </div>
                   </form>
@@ -413,13 +440,111 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowCreateStoreForm(true)}
-                    className="w-full min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors"
+                    className="group w-full min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all"
                   >
-                    <Store className="w-4 h-4" />
+                    <Store className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                     <span>{isAr ? 'أنشئ متجرك المجاني' : 'Create Your Free Store'}</span>
                   </button>
                 )
               ) : null}
+            </div>
+          )}
+
+          {/* My Ads (إعلاناتي) with One-Tap Availability Toggle */}
+          {user && (
+            <div className="p-4 border-b border-amber-200/70 bg-[#FDFBF7] space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
+                  <Package className="w-4 h-4 text-[#0D9488]" />
+                  <span>{isAr ? 'إعلاناتي' : 'My Ads'}</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#0F766E] tabular-nums">
+                  {myListings.length}
+                </span>
+              </div>
+
+              {myListings.length === 0 ? (
+                <p className="text-xs text-[#64748B] py-1">
+                  {isAr ? 'لا توجد إعلانات منشورة لحسابك بعد.' : 'No ads published yet.'}
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-52 overflow-y-auto pl-0.5">
+                  {myListings.map((item) => {
+                    const thumb = item.thumbnailUrl || item.mediaUrls?.[0];
+                    const isUpdating = updatingPostId === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        className={`p-2 rounded-xl bg-[#FFFDF9] border border-amber-200/75 flex items-center justify-between gap-2.5 transition-opacity ${
+                          item.isSoldOut ? 'opacity-80' : ''
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onSelectListing) {
+                              onClose();
+                              onSelectListing(item);
+                            }
+                          }}
+                          className="flex items-center gap-2.5 min-w-0 text-start flex-1"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-[#FEF9E7] border border-amber-200/70 overflow-hidden shrink-0 flex items-center justify-center">
+                            {thumb ? (
+                              <img
+                                src={thumb}
+                                alt={item.title}
+                                referrerPolicy="no-referrer"
+                                className={`w-full h-full object-cover ${
+                                  item.isSoldOut ? 'grayscale-[30%]' : ''
+                                }`}
+                              />
+                            ) : (
+                              <ImageIcon className="w-4 h-4 text-amber-300" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-[#1E293B] truncate">
+                              {item.title}
+                            </p>
+                            <p className="text-[11px] font-semibold text-[#0F766E] tabular-nums">
+                              {item.hidePrice
+                                ? (isAr ? 'عند التواصل' : 'Contact')
+                                : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
+                            </p>
+                          </div>
+                        </button>
+
+                        {onToggleSoldOut && (
+                          <button
+                            type="button"
+                            disabled={isUpdating}
+                            onClick={() => onToggleSoldOut(item, !item.isSoldOut)}
+                            className={`group min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-60 ${
+                              item.isSoldOut
+                                ? 'bg-slate-800 hover:bg-slate-900 text-white'
+                                : 'bg-teal-50 hover:bg-teal-100 text-[#0F766E] border border-teal-200'
+                            }`}
+                          >
+                            {isUpdating ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : item.isSoldOut ? (
+                              <PackageX className="w-3 h-3 text-amber-300 transition-transform duration-200 group-hover:scale-110" />
+                            ) : (
+                              <PackageCheck className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                            )}
+                            <span>
+                              {item.isSoldOut
+                                ? (isAr ? 'نفدت الكمية' : 'Sold Out')
+                                : (isAr ? 'متوفر' : 'Available')}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -461,9 +586,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={isUploadingAvatar}
-                  className="mt-1 text-[11px] font-bold text-[#0F766E] hover:bg-teal-100/70 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 inline-flex items-center gap-1 transition-colors"
+                  className="group mt-1 text-[11px] font-bold text-[#0F766E] hover:bg-teal-100/70 active:scale-95 bg-teal-50 px-2.5 py-1 rounded-lg border border-teal-200 inline-flex items-center gap-1 transition-all"
                 >
-                  <Camera className="w-3 h-3" />
+                  <Camera className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                   <span>{isAr ? 'رفع صورة جديدة' : 'Upload Photo'}</span>
                 </button>
                 <input
@@ -533,9 +658,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               <button
                 type="submit"
                 disabled={isSaving}
-                className="flex-1 min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
+                className="group flex-1 min-h-[44px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 disabled:opacity-60 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5"
               >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
+                )}
                 <span>{isAr ? 'حفظ التعديلات' : 'Save Changes'}</span>
               </button>
 
@@ -543,10 +672,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="min-h-[44px] px-3.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors flex items-center gap-1 border border-red-200"
+                  className="group min-h-[44px] px-3.5 rounded-xl bg-red-50 hover:bg-red-100 active:scale-95 text-red-700 text-xs font-bold transition-all flex items-center gap-1 border border-red-200"
                   title={isAr ? 'تسجيل الخروج' : 'Log out'}
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-4 h-4 transition-transform duration-200 rtl:group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
                   <span>{isAr ? 'خروج' : 'Logout'}</span>
                 </button>
               )}

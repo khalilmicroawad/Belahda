@@ -153,8 +153,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none">
-      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80">
+    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none animate-fade-in">
+      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80 animate-modal-up">
         {/* Header */}
         <div className="p-4 border-b border-amber-200/70 flex items-center justify-between bg-[#FEF9E7]/80">
           <div className="flex items-center gap-2.5">
@@ -175,10 +175,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 flex items-center justify-center transition-colors"
+            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 active:scale-90 flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق' : 'Close'}
           >
-            <X className="w-4 h-4" />
+            <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
           </button>
         </div>
 
@@ -190,13 +190,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('signup');
               setError(null);
             }}
-            className={`min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+            className={`group min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
               mode === 'signup'
                 ? 'bg-white text-[#0F766E] shadow-xs'
                 : 'text-[#64748B] hover:text-[#1E293B]'
             }`}
           >
-            <UserPlus className="w-3.5 h-3.5" />
+            <UserPlus className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110" />
             <span>{isAr ? 'حساب جديد' : 'Sign Up'}</span>
           </button>
           <button
@@ -205,13 +205,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               setMode('login');
               setError(null);
             }}
-            className={`min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+            className={`group min-h-[38px] rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
               mode === 'login'
                 ? 'bg-white text-[#0F766E] shadow-xs'
                 : 'text-[#64748B] hover:text-[#1E293B]'
             }`}
           >
-            <LogIn className="w-3.5 h-3.5" />
+            <LogIn className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110" />
             <span>{isAr ? 'تسجيل الدخول' : 'Login'}</span>
           </button>
         </div>
@@ -319,14 +319,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 mt-2"
+            className="group w-full min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-60 active:scale-[0.98] text-white font-bold text-xs sm:text-sm shadow-sm transition-all flex items-center justify-center gap-2 mt-2"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : mode === 'signup' ? (
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 transition-transform duration-200 group-hover:scale-110" />
             ) : (
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 rtl:group-hover:-translate-x-0.5" />
             )}
             <span>
               {isLoading

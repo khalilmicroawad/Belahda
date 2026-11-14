@@ -296,6 +296,7 @@ export function mapPostRowToListing(row: any): Listing {
     sellerPhone,
     sellerAvatar: row.seller_avatar || undefined,
     isVerified: Boolean(row.is_verified),
+    isSoldOut: Boolean(row.is_sold_out),
   };
 }
 
@@ -597,6 +598,29 @@ export async function deleteSupabasePost(id: string): Promise<boolean> {
     return false;
   }
   return true;
+}
+
+export async function updatePostSoldOutStatus(
+  postId: string,
+  isSoldOut: boolean
+): Promise<{ ok: boolean; savedListing?: Listing; error?: string }> {
+  const numericId = /^\d+$/.test(String(postId)) ? Number(postId) : postId;
+  const { data, error } = await supabase
+    .from('posts')
+    .update({ is_sold_out: isSoldOut })
+    .eq('id', numericId)
+    .select()
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Supabase updatePostSoldOutStatus error:', error.message);
+    return { ok: false, error: error.message };
+  }
+
+  return {
+    ok: true,
+    savedListing: data ? mapPostRowToListing(data) : undefined,
+  };
 }
 
 function mapRowToListing(row: any): Listing {

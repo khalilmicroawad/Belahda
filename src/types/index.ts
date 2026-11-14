@@ -100,6 +100,7 @@ export interface Listing {
   sellerPhone: string;
   sellerAvatar?: string;
   isVerified?: boolean;
+  isSoldOut?: boolean;
 }
 
 export interface UserAccount {

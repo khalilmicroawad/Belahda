@@ -46,6 +46,130 @@
   padding-top: env(safe-area-inset-top, 0.5rem);
 }
 
+/* Smooth GPU-compositor UI animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalSlideDown {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes heartPop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.32);
+  }
+  70% {
+    transform: scale(0.92);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmerSweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes fabSoftGlow {
+  0%, 100% {
+    box-shadow: 0 10px 26px rgba(13, 148, 136, 0.30), 0 0 0 0 rgba(20, 184, 166, 0.25);
+  }
+  50% {
+    box-shadow: 0 12px 32px rgba(13, 148, 136, 0.42), 0 0 0 6px rgba(20, 184, 166, 0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-out {
+  animation: fadeOut 150ms ease-out both;
+}
+
+.animate-modal-up {
+  animation: modalSlideUp 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-modal-down {
+  animation: modalSlideDown 150ms ease-out both;
+}
+
+.animate-toast-in {
+  animation: toastSlideIn 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-heart-pop {
+  animation: heartPop 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(254, 243, 199, 0.45) 25%,
+    rgba(255, 253, 249, 0.95) 50%,
+    rgba(254, 243, 199, 0.45) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmerSweep 1.5s infinite linear;
+}
+
+.animate-fab-glow {
+  animation: fabSoftGlow 2.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

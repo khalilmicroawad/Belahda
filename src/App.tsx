@@ -8,8 +8,13 @@ import {
   Plus,
   User,
   AlertTriangle,
-  Eye
+  Eye,
+  Heart,
+  ShoppingBag,
+  Store,
+  Check
 } from 'lucide-react';
+import { getFavoriteIds, toggleFavoriteId } from './lib/favorites';
 import { Listing, AppView, StoreProfile, UserAccount } from './types';
 import {
   getStoredUser,
@@ -25,13 +30,14 @@ import {
   fetchSupabaseStores,
   fetchStoreById,
   subscribeToSupabasePosts,
-  trackSessionVisitor
+  trackSessionVisitor,
+  updatePostSoldOutStatus
 } from './lib/supabase';
 import { ListingWizard } from './components/listing-wizard/ListingWizard';
 import { MarketplaceFeed } from './components/marketplace/MarketplaceFeed';
 import { ListingDetailModal } from './components/marketplace/ListingDetailModal';
 import { StoresDirectoryView } from './components/stores/StoresDirectoryView';
-import { StoreDetailModal } from './components/stores/StoreDetailModal';
+import { StorefrontView } from './components/stores/StorefrontView';
 import { ChatModal } from './components/chat/ChatModal';
 import { UserProfileModal } from './components/profile/UserProfileModal';
 import { AuthModal } from './components/auth/AuthModal';
@@ -51,15 +57,99 @@ export default function App() {
   const [newlyPublishedId, setNewlyPublishedId] = useState<string | null>(null);
   const [resetFeedTrigger, setResetFeedTrigger] = useState<number>(0);
   const [visitorCount, setVisitorCount] = useState<number | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => getFavoriteIds());
+  const [appToast, setAppToast] = useState<{
+    id: number;
+    message: string;
+    kind: 'favorite' | 'share' | 'info';
+    added?: boolean;
+  } | null>(null);
 
-  // Detail, Store, Chat, Profile & Auth Modals
+  // Detail, Storefront, Chat, Profile & Auth Modals
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
   const [selectedStore, setSelectedStore] = useState<StoreProfile | null>(null);
+  const [storeReturnView, setStoreReturnView] = useState<'feed' | 'stores'>('stores');
+  const [isResolvingSharedStore, setIsResolvingSharedStore] = useState<boolean>(false);
+  const [updatingSoldOutId, setUpdatingSoldOutId] = useState<string | null>(null);
   const [chatListing, setChatListing] = useState<Listing | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<(() => void) | null>(null);
+
+  const showToastNotification = (
+    message: string,
+    kind: 'favorite' | 'share' | 'info' = 'info',
+    added?: boolean
+  ) => {
+    setAppToast({
+      id: Date.now(),
+      message,
+      kind,
+      added,
+    });
+  };
+
+  useEffect(() => {
+    if (!appToast) return;
+    const timer = window.setTimeout(() => {
+      setAppToast(null);
+    }, 2400);
+    return () => window.clearTimeout(timer);
+  }, [appToast]);
+
+  const handleToggleFavorite = (postId: string) => {
+    const { favorites, added } = toggleFavoriteId(postId);
+    setFavoriteIds(favorites);
+    showToastNotification(
+      added
+        ? isAr
+          ? 'تمت الإضافة إلى المفضلة'
+          : 'Added to favorites'
+        : isAr
+        ? 'تمت الإزالة من المفضلة'
+        : 'Removed from favorites',
+      'favorite',
+      added
+    );
+  };
+
+  const handleToggleSoldOut = async (listing: Listing, nextSoldOut: boolean) => {
+    setUpdatingSoldOutId(listing.id);
+    try {
+      const res = await updatePostSoldOutStatus(listing.id, nextSoldOut);
+      if (!res.ok) {
+        showToastNotification(
+          isAr ? 'تعذر تحديث حالة التوفر' : 'Failed to update availability',
+          'info'
+        );
+        return;
+      }
+
+      const updatedItem: Listing = res.savedListing
+        ? { ...res.savedListing, isSoldOut: nextSoldOut }
+        : { ...listing, isSoldOut: nextSoldOut };
+
+      setListings((prev) =>
+        prev.map((item) => (item.id === listing.id ? updatedItem : item))
+      );
+      setSelectedListing((prev) =>
+        prev && prev.id === listing.id ? updatedItem : prev
+      );
+      showToastNotification(
+        nextSoldOut
+          ? isAr
+            ? 'تم تحديد الإعلان كـ نفدت الكمية'
+            : 'Marked as Sold Out'
+          : isAr
+          ? 'تم تحديث الإعلان كـ متوفر'
+          : 'Marked as Available',
+        'share'
+      );
+    } finally {
+      setUpdatingSoldOutId(null);
+    }
+  };
 
   const loadPublicPosts = async () => {
     setIsFeedLoading(true);
@@ -92,6 +182,29 @@ export default function App() {
     // 1. Fetch public posts & stores
     loadPublicPosts();
     loadPublicStores();
+
+    // Check for deep-linked storefront (?store=STORE_ID)
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedStoreId = urlParams.get('store');
+      if (sharedStoreId) {
+        setIsResolvingSharedStore(true);
+        fetchStoreById(sharedStoreId)
+          .then((fetched) => {
+            if (fetched) {
+              setStores((prev) => [fetched, ...prev.filter((s) => s.id !== fetched.id)]);
+              setSelectedStore(fetched);
+              setStoreReturnView('feed');
+              setCurrentView('store_detail');
+            }
+          })
+          .finally(() => {
+            setIsResolvingSharedStore(false);
+          });
+      }
+    } catch {
+      // Ignore URL parse issues in restricted frames
+    }
 
     // 2. Track visitor once per browser session via sessionStorage
     trackSessionVisitor().then((count) => {
@@ -152,13 +265,45 @@ export default function App() {
     document.documentElement.dir = isAr ? 'rtl' : 'ltr';
   }, [lang, isAr]);
 
+  const syncStoreQueryParam = (storeId?: string | null) => {
+    try {
+      const url = new URL(window.location.href);
+      if (storeId) {
+        url.searchParams.set('store', storeId);
+      } else {
+        url.searchParams.delete('store');
+      }
+      window.history.replaceState({}, '', url.toString());
+    } catch {
+      // Safe fallback in restricted frames
+    }
+  };
+
+  const openStorefrontView = (store: StoreProfile, returnTo: 'feed' | 'stores' = 'stores') => {
+    setStoreReturnView(returnTo);
+    setSelectedStore(store);
+    setCurrentView('store_detail');
+    syncStoreQueryParam(store.id);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCloseStorefront = () => {
+    setSelectedStore(null);
+    setCurrentView(storeReturnView);
+    syncStoreQueryParam(null);
+  };
+
   const handleSelectBuy = async () => {
+    setSelectedStore(null);
+    syncStoreQueryParam(null);
     setCurrentView('feed');
     setResetFeedTrigger((prev) => prev + 1);
     await loadPublicPosts();
   };
 
   const handleSelectStoresTab = async () => {
+    setSelectedStore(null);
+    syncStoreQueryParam(null);
     setCurrentView('stores');
     await loadPublicStores();
   };
@@ -183,6 +328,7 @@ export default function App() {
   const handleListingPublished = (newListing: Listing) => {
     setListings((prev) => [newListing, ...prev.filter((item) => item.id !== newListing.id)]);
     setNewlyPublishedId(newListing.id);
+    syncStoreQueryParam(null);
     setCurrentView('feed');
 
     setTimeout(() => {
@@ -190,16 +336,16 @@ export default function App() {
     }, 6000);
   };
 
-  const handleOpenStoreById = async (storeId: string) => {
+  const handleOpenStoreById = async (storeId: string, returnTo: 'feed' | 'stores' = 'feed') => {
     const localMatch = stores.find((s) => String(s.id) === String(storeId));
     if (localMatch) {
-      setSelectedStore(localMatch);
+      openStorefrontView(localMatch, returnTo);
       return;
     }
     const fetched = await fetchStoreById(storeId);
     if (fetched) {
       setStores((prev) => [fetched, ...prev.filter((s) => s.id !== fetched.id)]);
-      setSelectedStore(fetched);
+      openStorefrontView(fetched, returnTo);
     }
   };
 
@@ -254,24 +400,38 @@ export default function App() {
             <button
               type="button"
               onClick={handleSelectBuy}
-              className={`px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 ${
+              className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'feed'
                   ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-amber-100/70'
+                  : 'text-[#1E293B] hover:bg-amber-100/70 hover:text-[#0F766E]'
               }`}
             >
-              {isAr ? 'شراء' : 'Buy'}
+              <ShoppingBag
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform duration-200 ${
+                  currentView === 'feed'
+                    ? 'text-white scale-105'
+                    : 'text-[#0D9488] group-hover:scale-110 group-hover:-rotate-6'
+                }`}
+              />
+              <span>{isAr ? 'شراء' : 'Buy'}</span>
             </button>
             <button
               type="button"
               onClick={handleSelectStoresTab}
-              className={`px-3.5 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 ${
+              className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'stores'
                   ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-amber-100/70'
+                  : 'text-[#1E293B] hover:bg-amber-100/70 hover:text-[#0F766E]'
               }`}
             >
-              {isAr ? 'المتاجر' : 'Stores'}
+              <Store
+                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform duration-200 ${
+                  currentView === 'stores'
+                    ? 'text-white scale-105'
+                    : 'text-[#0D9488] group-hover:scale-110 group-hover:rotate-3'
+                }`}
+              />
+              <span>{isAr ? 'المتاجر' : 'Stores'}</span>
             </button>
           </nav>
 
@@ -287,9 +447,9 @@ export default function App() {
                   setShowAuthModal(true);
                 }
               }}
-              className="min-h-[40px] px-3 sm:px-3.5 rounded-xl bg-white hover:bg-[#FEF9E7] border border-amber-200/80 text-xs font-semibold text-[#1E293B] transition-all duration-150 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
+              className="group min-h-[40px] px-3 sm:px-3.5 rounded-xl bg-white hover:bg-[#FEF9E7] active:scale-95 border border-amber-200/80 text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
             >
-              <User className="w-4 h-4 text-[#0D9488] shrink-0" />
+              <User className="w-4 h-4 text-[#0D9488] shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="truncate max-w-[90px] sm:max-w-[130px]">
                 {currentUser ? currentUser.name : (isAr ? 'دخول' : 'Sign In')}
               </span>
@@ -319,12 +479,43 @@ export default function App() {
             onPublished={handleListingPublished}
             lang={lang}
           />
+        ) : isResolvingSharedStore && !selectedStore ? (
+          <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-5">
+            <div className="h-44 rounded-3xl skeleton-shimmer border border-amber-200/60" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
+              {[1, 2, 3, 4].map((n) => (
+                <div key={n} className="bg-[#FFFDF9] rounded-2xl border border-amber-200/60 overflow-hidden">
+                  <div className="aspect-[4/3] skeleton-shimmer" />
+                  <div className="p-3.5 space-y-2">
+                    <div className="h-4 skeleton-shimmer rounded-lg w-4/5" />
+                    <div className="h-4 skeleton-shimmer rounded-lg w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : currentView === 'store_detail' && selectedStore ? (
+          <StorefrontView
+            store={selectedStore}
+            listings={listings}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={handleToggleFavorite}
+            onBack={handleCloseStorefront}
+            onSelectListing={(item) => setSelectedListing(item)}
+            onNotifyToast={showToastNotification}
+            backLabel={
+              storeReturnView === 'stores'
+                ? (isAr ? 'رجوع للمتاجر' : 'Back to Stores')
+                : (isAr ? 'رجوع للسوق' : 'Back to Market')
+            }
+            lang={lang}
+          />
         ) : currentView === 'stores' ? (
           <StoresDirectoryView
             stores={stores}
             listings={listings}
             currentUser={currentUser}
-            onSelectStore={(st) => setSelectedStore(st)}
+            onSelectStore={(st) => openStorefrontView(st, 'stores')}
             isLoading={isStoresLoading}
             lang={lang}
           />
@@ -332,7 +523,10 @@ export default function App() {
           <MarketplaceFeed
             listings={listings}
             currentUser={currentUser}
+            favoriteIds={favoriteIds}
+            onToggleFavorite={handleToggleFavorite}
             onSelectListing={(item) => setSelectedListing(item)}
+            onOpenStore={(storeId) => handleOpenStoreById(storeId, 'feed')}
             onOpenChat={(item) => setChatListing(item)}
             onOpenCreate={handleSelectSell}
             onRequireAuth={handleRequireAuth}
@@ -345,6 +539,31 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Subtle Toast Notification (Favorites & Share Store) */}
+      {appToast && (
+        <div
+          key={appToast.id}
+          role="status"
+          aria-live="polite"
+          className="fixed top-18 inset-x-0 z-[70] pointer-events-none flex justify-center px-4"
+        >
+          <div className="animate-toast-in px-4 py-2.5 rounded-2xl bg-[#FFFDF9]/95 backdrop-blur-md border border-amber-200/90 shadow-[0_10px_28px_rgba(13,148,136,0.16)] flex items-center gap-2 text-xs font-bold text-[#1E293B]">
+            {appToast.kind === 'favorite' ? (
+              <Heart
+                className={`w-4 h-4 shrink-0 ${
+                  appToast.added
+                    ? 'fill-rose-500 text-rose-500 animate-heart-pop'
+                    : 'text-[#64748B]'
+                }`}
+              />
+            ) : (
+              <Check className="w-4 h-4 shrink-0 text-[#0D9488] animate-heart-pop" />
+            )}
+            <span>{appToast.message}</span>
+          </div>
+        </div>
+      )}
 
       {/* Clean Minimalist Footer with Automatic Visitor Counter */}
       <footer className={`border-t border-amber-200/70 bg-[#FFFDF9] py-4 px-4 ${currentView !== 'create' ? 'pb-24' : ''}`}>
@@ -369,9 +588,9 @@ export default function App() {
           <button
             type="button"
             onClick={handleSelectSell}
-            className="pointer-events-auto h-12 px-7 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-[0.97] text-white font-bold text-sm shadow-[0_10px_28px_rgba(13,148,136,0.34)] border border-teal-400/40 flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap"
+            className="group pointer-events-auto animate-fab-glow h-12 px-7 rounded-2xl bg-[#0D9488] hover:bg-[#0F766E] hover:-translate-y-0.5 active:scale-95 text-white font-bold text-sm border border-teal-300/45 flex items-center justify-center gap-2 transition-all duration-200 whitespace-nowrap"
           >
-            <Plus className="w-5 h-5 stroke-[2.5]" />
+            <Plus className="w-5 h-5 stroke-[2.5] transition-transform duration-200 group-hover:rotate-90 group-active:rotate-90" />
             <span>{isAr ? 'أضف إعلان' : 'Add Ad'}</span>
           </button>
         </div>
@@ -382,22 +601,15 @@ export default function App() {
         <ListingDetailModal
           listing={selectedListing}
           currentUser={currentUser}
+          isFavorite={favoriteIds.includes(selectedListing.id)}
+          onToggleFavorite={handleToggleFavorite}
+          onToggleSoldOut={handleToggleSoldOut}
+          isUpdatingSoldOut={updatingSoldOutId === selectedListing.id}
           onClose={() => setSelectedListing(null)}
           onOpenChat={(item) => setChatListing(item)}
-          onOpenStore={handleOpenStoreById}
-          onRequireAuth={handleRequireAuth}
-          lang={lang}
-        />
-      )}
-
-      {/* Store Detail Modal */}
-      {selectedStore && (
-        <StoreDetailModal
-          store={selectedStore}
-          listings={listings}
-          currentUser={currentUser}
-          onClose={() => setSelectedStore(null)}
-          onSelectListing={(item) => setSelectedListing(item)}
+          onOpenStore={(storeId) =>
+            handleOpenStoreById(storeId, currentView === 'stores' ? 'stores' : 'feed')
+          }
           onRequireAuth={handleRequireAuth}
           lang={lang}
         />
@@ -417,12 +629,16 @@ export default function App() {
       {showProfileModal && (
         <UserProfileModal
           user={currentUser}
+          listings={listings}
+          onToggleSoldOut={handleToggleSoldOut}
+          updatingPostId={updatingSoldOutId}
+          onSelectListing={(item) => setSelectedListing(item)}
           onUpdateUser={(usr) => setCurrentUser(usr)}
           onOpenAuth={() => {
             setAuthPurposeMessage(undefined);
             setShowAuthModal(true);
           }}
-          onOpenStore={(st) => setSelectedStore(st)}
+          onOpenStore={(st) => openStorefrontView(st, 'stores')}
           onStoreCreated={handleStoreCreated}
           onClose={() => setShowProfileModal(false)}
           lang={lang}

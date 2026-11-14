@@ -14,13 +14,20 @@ import {
   Check,
   Truck,
   ExternalLink,
-  Image as ImageIcon
+  Image as ImageIcon,
+  PackageX,
+  PackageCheck,
+  Loader2
 } from 'lucide-react';
 import { Listing, UserAccount } from '../../types';
 
 interface ListingDetailModalProps {
   listing: Listing;
   currentUser: UserAccount | null;
+  isFavorite?: boolean;
+  onToggleFavorite?: (postId: string) => void;
+  onToggleSoldOut?: (listing: Listing, nextSoldOut: boolean) => Promise<void> | void;
+  isUpdatingSoldOut?: boolean;
   onClose: () => void;
   onOpenChat: (listing: Listing) => void;
   onOpenStore?: (storeId: string) => void;
@@ -31,6 +38,10 @@ interface ListingDetailModalProps {
 export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   listing,
   currentUser,
+  isFavorite,
+  onToggleFavorite,
+  onToggleSoldOut,
+  isUpdatingSoldOut = false,
   onClose,
   onOpenChat,
   onOpenStore,
@@ -40,8 +51,28 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const isAr = lang === 'ar';
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [copiedLink, setCopiedLink] = useState(false);
-  const [isFav, setIsFav] = useState(false);
+  const [localFav, setLocalFav] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [heartPop, setHeartPop] = useState(false);
+  const [sharePop, setSharePop] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const isFav = typeof isFavorite === 'boolean' ? isFavorite : localFav;
+  const isOwner = Boolean(
+    currentUser?.id &&
+      ((listing.sellerId && String(listing.sellerId) === String(currentUser.id)) ||
+        (currentUser.customStoreId &&
+          listing.storeId &&
+          String(currentUser.customStoreId) === String(listing.storeId)))
+  );
+
+  const handleAnimatedClose = () => {
+    setIsClosing(true);
+    window.setTimeout(() => {
+      onClose();
+    }, 150);
+  };
 
   const handleWhatsApp = () => {
     const action = () => {
@@ -89,6 +120,8 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   };
 
   const handleShare = () => {
+    setSharePop(true);
+    window.setTimeout(() => setSharePop(false), 280);
     if (navigator.share) {
       navigator.share({
         title: listing.title,
@@ -99,6 +132,16 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
       navigator.clipboard?.writeText(window.location.href);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
+    }
+  };
+
+  const handleToggleFav = () => {
+    setHeartPop(true);
+    window.setTimeout(() => setHeartPop(false), 300);
+    if (onToggleFavorite) {
+      onToggleFavorite(listing.id);
+    } else {
+      setLocalFav((prev) => !prev);
     }
   };
 
@@ -127,16 +170,24 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
   const isCommercial = listing.adType === 'commercial' || listing.sellerType === 'commercial';
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none">
+    <div
+      onClick={handleAnimatedClose}
+      className={`fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none ${
+        isClosing ? 'animate-fade-out' : 'animate-fade-in'
+      }`}
+    >
       {isLightboxOpen && activePhotoSrc && (
         <div
-          onClick={() => setIsLightboxOpen(false)}
-          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsLightboxOpen(false);
+          }}
+          className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
         >
           <button
             type="button"
             onClick={() => setIsLightboxOpen(false)}
-            className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center"
+            className="absolute top-4 right-4 min-w-[44px] min-h-[44px] rounded-full bg-white/15 hover:bg-white/25 active:scale-95 text-white flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق الصورة' : 'Close zoom'}
           >
             <ChevronRight className="w-5 h-5" />
@@ -150,18 +201,27 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         </div>
       )}
 
-      <div className="bg-[#FFFDF9] w-full max-w-lg mx-auto sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={`bg-[#FFFDF9] w-full max-w-lg mx-auto sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80 ${
+          isClosing ? 'animate-modal-down' : 'animate-modal-up'
+        }`}
+      >
         <div className="sm:hidden w-10 h-1 bg-amber-200/90 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/70 bg-[#FFFDF9]/95 sticky top-0 z-10">
           <button
             type="button"
-            onClick={onClose}
-            className="min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FEF9E7] rounded-xl flex items-center justify-center transition-colors"
+            onClick={handleAnimatedClose}
+            className="group min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FEF9E7] active:scale-95 rounded-xl flex items-center justify-center transition-all"
             aria-label={isAr ? 'رجوع' : 'Back'}
           >
-            {isAr ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+            {isAr ? (
+              <ChevronRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            ) : (
+              <ChevronLeft className="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+            )}
           </button>
 
           <span className="text-sm font-bold text-[#1E293B] truncate max-w-[210px]">
@@ -172,18 +232,30 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleShare}
-              className="min-w-[40px] min-h-[40px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FEF9E7] flex items-center justify-center transition-colors"
+              className={`group min-w-[40px] min-h-[40px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FEF9E7] active:scale-90 flex items-center justify-center transition-all ${
+                sharePop ? 'animate-heart-pop text-[#0D9488]' : ''
+              }`}
               aria-label={isAr ? 'مشاركة' : 'Share'}
             >
-              {copiedLink ? <Check className="w-4 h-4 text-[#0D9488]" /> : <Share2 className="w-4 h-4" />}
+              {copiedLink ? (
+                <Check className="w-4 h-4 text-[#0D9488]" />
+              ) : (
+                <Share2 className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
+              )}
             </button>
             <button
               type="button"
-              onClick={() => setIsFav(!isFav)}
-              className="min-w-[40px] min-h-[40px] text-[#64748B] hover:text-red-500 rounded-xl hover:bg-[#FEF9E7] flex items-center justify-center transition-colors"
+              onClick={handleToggleFav}
+              className={`group min-w-[40px] min-h-[40px] rounded-xl hover:bg-[#FEF9E7] active:scale-90 flex items-center justify-center transition-all ${
+                isFav ? 'text-rose-500' : 'text-[#64748B] hover:text-rose-500'
+              } ${heartPop ? 'animate-heart-pop' : ''}`}
               aria-label={isAr ? 'حفظ' : 'Save'}
             >
-              <Heart className={`w-4 h-4 ${isFav ? 'fill-red-500 text-red-500' : ''}`} />
+              <Heart
+                className={`w-4 h-4 transition-all duration-200 group-hover:scale-110 ${
+                  isFav ? 'fill-rose-500 text-rose-500' : ''
+                }`}
+              />
             </button>
           </div>
         </div>
@@ -198,15 +270,30 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             }`}
           >
             {activePhotoSrc ? (
-              <img
-                src={activePhotoSrc}
-                alt={listing.title || 'صورة المنتج'}
-                referrerPolicy="no-referrer"
-                className="w-full h-full object-cover"
-              />
+              <>
+                {!imgLoaded && <div className="absolute inset-0 skeleton-shimmer" />}
+                <img
+                  src={activePhotoSrc}
+                  alt={listing.title || 'صورة المنتج'}
+                  referrerPolicy="no-referrer"
+                  onLoad={() => setImgLoaded(true)}
+                  className={`w-full h-full object-cover transition-all duration-300 ${
+                    imgLoaded ? 'opacity-100' : 'opacity-0'
+                  } ${listing.isSoldOut ? 'grayscale-[25%]' : ''}`}
+                />
+              </>
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-[#FEF9E7] to-amber-100/60 flex items-center justify-center">
                 <ImageIcon className="w-10 h-10 text-amber-300" />
+              </div>
+            )}
+
+            {listing.isSoldOut && (
+              <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center pointer-events-none">
+                <span className="px-4 py-2 rounded-2xl bg-slate-900/80 backdrop-blur-xs text-white text-xs sm:text-sm font-extrabold border border-white/15 shadow-md inline-flex items-center gap-2">
+                  <PackageX className="w-4 h-4 text-amber-300" />
+                  <span>{isAr ? 'نفدت الكمية' : 'Sold Out'}</span>
+                </span>
               </div>
             )}
 
@@ -219,7 +306,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setActivePhotoIdx(i)}
+                    onClick={() => {
+                      setImgLoaded(false);
+                      setActivePhotoIdx(i);
+                    }}
                     className={`h-1.5 rounded-full transition-all ${
                       activePhotoIdx === i ? 'bg-[#14B8A6] w-5' : 'bg-white/70 w-1.5'
                     }`}
@@ -278,6 +368,50 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             </div>
           </div>
 
+          {/* Owner Quick Availability Toggle (متوفر / نفدت الكمية) */}
+          {isOwner && onToggleSoldOut && (
+            <div className="p-3.5 rounded-2xl bg-[#FEF9E7] border border-amber-200/90 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                {listing.isSoldOut ? (
+                  <PackageX className="w-4 h-4 text-amber-700 shrink-0" />
+                ) : (
+                  <PackageCheck className="w-4 h-4 text-[#0D9488] shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#1E293B]">
+                    {listing.isSoldOut
+                      ? (isAr ? 'الحالة: نفدت الكمية' : 'Status: Sold Out')
+                      : (isAr ? 'الحالة: متوفر حالياً' : 'Status: Available')}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={isUpdatingSoldOut}
+                onClick={() => onToggleSoldOut(listing, !listing.isSoldOut)}
+                className={`group min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shrink-0 transition-all active:scale-95 disabled:opacity-60 ${
+                  listing.isSoldOut
+                    ? 'bg-[#0D9488] hover:bg-[#0F766E] text-white shadow-xs'
+                    : 'bg-[#1E293B] hover:bg-slate-800 text-white shadow-xs'
+                }`}
+              >
+                {isUpdatingSoldOut ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : listing.isSoldOut ? (
+                  <PackageCheck className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110" />
+                ) : (
+                  <PackageX className="w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110" />
+                )}
+                <span>
+                  {listing.isSoldOut
+                    ? (isAr ? 'تحديد كـ متوفر' : 'Mark Available')
+                    : (isAr ? 'تحديد كـ نفدت الكمية' : 'Mark Sold Out')}
+                </span>
+              </button>
+            </div>
+          )}
+
           {/* Description */}
           <div className="p-4 rounded-2xl bg-[#FEF9E7]/65 border border-amber-200/70 space-y-1.5">
             <h2 className="text-xs font-bold text-[#1E293B]">
@@ -309,11 +443,26 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-bold text-[#1E293B] truncate">
-                      {isCommercial && listing.storeName
-                        ? listing.storeName
-                        : listing.sellerName || (isAr ? 'بائع' : 'Seller')}
-                    </span>
+                    {listing.storeId && onOpenStore ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenStore(listing.storeId!);
+                        }}
+                        className="text-sm font-bold text-[#0F766E] hover:underline truncate text-start"
+                      >
+                        {isCommercial && listing.storeName
+                          ? listing.storeName
+                          : listing.sellerName || (isAr ? 'بائع' : 'Seller')}
+                      </button>
+                    ) : (
+                      <span className="text-sm font-bold text-[#1E293B] truncate">
+                        {isCommercial && listing.storeName
+                          ? listing.storeName
+                          : listing.sellerName || (isAr ? 'بائع' : 'Seller')}
+                      </span>
+                    )}
                     {listing.storeId && onOpenStore && (
                       <button
                         type="button"
@@ -321,9 +470,9 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                           onClose();
                           onOpenStore(listing.storeId!);
                         }}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/80 hover:bg-amber-200/70 text-amber-900 border border-amber-200/80 text-[11px] font-bold transition-colors"
+                        className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/80 hover:bg-amber-200/70 active:scale-95 text-amber-900 border border-amber-200/80 text-[11px] font-bold transition-all"
                       >
-                        <Store className="w-3 h-3" />
+                        <Store className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                         <span>{isAr ? 'زيارة المتجر' : 'View Store'}</span>
                       </button>
                     )}
@@ -340,9 +489,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 <a
                   href={`tel:${listing.sellerPhone}`}
                   dir="ltr"
-                  className="text-xs font-bold tabular-nums text-[#1E293B] bg-[#FEF9E7] hover:bg-amber-100/80 border border-amber-200/80 px-3 py-2 rounded-xl transition-colors shrink-0"
+                  className="group inline-flex items-center gap-1.5 text-xs font-bold tabular-nums text-[#1E293B] bg-[#FEF9E7] hover:bg-amber-100/80 active:scale-95 border border-amber-200/80 px-3 py-2 rounded-xl transition-all shrink-0"
                 >
-                  {listing.sellerPhone}
+                  <Phone className="w-3.5 h-3.5 text-[#0D9488] transition-transform duration-200 group-hover:-rotate-12" />
+                  <span>{listing.sellerPhone}</span>
                 </a>
               )}
             </div>
@@ -354,11 +504,11 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                   href={resolvedMapsUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full min-h-[44px] px-3.5 rounded-xl bg-teal-50 hover:bg-teal-100/80 text-[#0F766E] border border-teal-200 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+                  className="group w-full min-h-[44px] px-3.5 rounded-xl bg-teal-50 hover:bg-teal-100/80 active:scale-[0.98] text-[#0F766E] border border-teal-200 text-xs font-bold flex items-center justify-center gap-2 transition-all"
                 >
-                  <MapPin className="w-4 h-4 text-[#0D9488]" />
+                  <MapPin className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110 group-hover:-translate-y-0.5" />
                   <span>{isAr ? 'فتح في خرائط Google' : 'Open in Google Maps'}</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <ExternalLink className="w-3.5 h-3.5 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" />
                 </a>
 
                 {typeof lat === 'number' && typeof lng === 'number' && (
@@ -382,18 +532,18 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleWhatsApp}
-              className="min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+              className="group min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
             >
-              <MessageCircle className="w-4 h-4" />
+              <MessageCircle className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
               <span>{isAr ? 'واتساب مباشر' : 'WhatsApp'}</span>
             </button>
           ) : (
             <button
               type="button"
               onClick={handlePhone}
-              className="min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-[0.98] text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
+              className="group min-h-[46px] rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2"
             >
-              <Phone className="w-4 h-4" />
+              <Phone className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
               <span>{isAr ? 'اتصال هاتفي' : 'Call Seller'}</span>
             </button>
           )}
@@ -401,9 +551,9 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
           <button
             type="button"
             onClick={handleChat}
-            className="min-h-[46px] rounded-xl bg-[#1E293B] hover:bg-slate-900 active:scale-[0.98] text-white text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
+            className="group min-h-[46px] rounded-xl bg-[#1E293B] hover:bg-slate-900 active:scale-95 text-white text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
           >
-            <MessageSquare className="w-4 h-4" />
+            <MessageSquare className="w-4 h-4 transition-transform duration-200 group-hover:scale-110 group-hover:-translate-x-0.5" />
             <span>{isAr ? 'دردشة فورية' : 'Direct Chat'}</span>
           </button>
         </div>

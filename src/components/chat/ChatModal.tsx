@@ -126,18 +126,22 @@ export const ChatModal: React.FC<ChatModalProps> = ({
   const previewImg = listing.thumbnailUrl || listing.mediaUrls?.[0] || listing.fullImageUrl;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none text-xs">
-      <div className="bg-[#FDFBF7] w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80">
+    <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none text-xs animate-fade-in">
+      <div className="bg-[#FDFBF7] w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80 animate-modal-up">
         {/* Header */}
         <div className="bg-[#FFFDF9] border-b border-amber-200/70 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={onClose}
-              className="min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#FEF9E7] flex items-center justify-center transition-colors shrink-0"
+              className="group min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#FEF9E7] active:scale-95 flex items-center justify-center transition-all shrink-0"
               aria-label={isAr ? 'رجوع' : 'Back'}
             >
-              {isAr ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
+              {isAr ? (
+                <ChevronRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+              ) : (
+                <ChevronLeft className="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
+              )}
             </button>
 
             <div className="w-9 h-9 rounded-xl bg-[#FEF9E7] border border-amber-200/80 overflow-hidden flex items-center justify-center shrink-0">
@@ -247,9 +251,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               key={i}
               type="button"
               onClick={() => handleSend(q)}
-              className="text-[11px] font-medium text-[#1E293B] bg-[#FEF9E7] hover:bg-teal-50 hover:text-[#0F766E] px-2.5 py-1 rounded-xl border border-amber-200/80 transition-colors"
+              className="group text-[11px] font-medium text-[#1E293B] bg-[#FEF9E7] hover:bg-teal-50 hover:text-[#0F766E] active:scale-95 px-2.5 py-1 rounded-xl border border-amber-200/80 transition-all inline-flex items-center gap-1"
             >
-              {q}
+              <MessageSquare className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+              <span>{q}</span>
             </button>
           ))}
         </div>
@@ -269,10 +274,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({
             type="button"
             onClick={() => handleSend()}
             disabled={!inputVal.trim()}
-            className="w-10 h-10 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-40 active:scale-95 text-white flex items-center justify-center transition-all shrink-0"
+            className="group w-10 h-10 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] disabled:opacity-40 active:scale-90 text-white flex items-center justify-center transition-all shrink-0"
             aria-label={isAr ? 'إرسال' : 'Send'}
           >
-            <Send className="w-4 h-4 rtl:rotate-180" />
+            <Send className="w-4 h-4 rtl:rotate-180 transition-transform duration-200 rtl:group-hover:-translate-x-0.5 ltr:group-hover:translate-x-0.5" />
           </button>
         </div>
       </div>
