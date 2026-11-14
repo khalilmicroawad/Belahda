@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus,
   User,
@@ -52,6 +52,7 @@ import {
   OfflineStatusBanner,
   BrowserInstallPromptBar,
 } from './components/common/PWAControls';
+import { ExitConfirmationModal } from './components/common/ExitConfirmationModal';
 
 export default function App() {
   const [lang] = useState<'ar' | 'en'>('ar');
@@ -91,6 +92,8 @@ export default function App() {
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
   const [authPurposeMessage, setAuthPurposeMessage] = useState<string | undefined>(undefined);
   const [pendingActionAfterAuth, setPendingActionAfterAuth] = useState<(() => void) | null>(null);
+  const [showExitModal, setShowExitModal] = useState<boolean>(false);
+  const isExitingAppRef = useRef<boolean>(false);
 
   // Browser geolocation for distance badges & Nearest sorting
   const [userLocation, setUserLocation] = useState<GeoCoords | null>(null);
@@ -435,7 +438,11 @@ export default function App() {
       } else {
         url.searchParams.delete('rep');
       }
-      window.history.replaceState({}, '', url.toString());
+      window.history.replaceState(
+        window.history.state || { balahzaGuard: true },
+        '',
+        url.toString()
+      );
     } catch {
       // Safe fallback in restricted frames
     }
@@ -469,6 +476,113 @@ export default function App() {
     setSelectedRepId(null);
     setCurrentView(repReturnView);
     syncEntityQueryParams({});
+  };
+
+  const backButtonContextRef = useRef({
+    showExitModal: false,
+    showAuthModal: false,
+    showProfileModal: false,
+    hasChatListing: false,
+    hasSelectedListing: false,
+    currentView: 'feed' as AppView,
+    storeReturnView: 'stores' as 'feed' | 'stores',
+    repReturnView: 'feed' as 'feed' | 'stores',
+  });
+
+  backButtonContextRef.current = {
+    showExitModal,
+    showAuthModal,
+    showProfileModal,
+    hasChatListing: Boolean(chatListing),
+    hasSelectedListing: Boolean(selectedListing),
+    currentView,
+    storeReturnView,
+    repReturnView,
+  };
+
+  useEffect(() => {
+    const pushBackGuard = () => {
+      try {
+        window.history.pushState({ balahzaGuard: true }, '', window.location.href);
+      } catch {
+        // Ignore in restricted frames
+      }
+    };
+
+    if (!window.history.state?.balahzaGuard) {
+      pushBackGuard();
+    }
+
+    const handlePopState = () => {
+      if (isExitingAppRef.current) {
+        return;
+      }
+
+      // Re-arm the sentinel state so subsequent back presses stay intercepted
+      pushBackGuard();
+
+      const ctx = backButtonContextRef.current;
+      if (ctx.showExitModal) {
+        setShowExitModal(false);
+      } else if (ctx.showAuthModal) {
+        setShowAuthModal(false);
+        setPendingActionAfterAuth(null);
+      } else if (ctx.showProfileModal) {
+        setShowProfileModal(false);
+      } else if (ctx.hasChatListing) {
+        setChatListing(null);
+      } else if (ctx.hasSelectedListing) {
+        setSelectedListing(null);
+      } else if (ctx.currentView === 'store_detail') {
+        setSelectedStore(null);
+        setCurrentView(ctx.storeReturnView);
+        syncEntityQueryParams({});
+      } else if (ctx.currentView === 'rep_corner') {
+        setSelectedRepId(null);
+        setCurrentView(ctx.repReturnView);
+        syncEntityQueryParams({});
+      } else if (ctx.currentView === 'create' || ctx.currentView === 'stores') {
+        setCurrentView('feed');
+      } else {
+        setShowExitModal(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  const handleConfirmExitApp = () => {
+    isExitingAppRef.current = true;
+    setShowExitModal(false);
+
+    const capApp = (window as any).Capacitor?.Plugins?.App;
+    if (capApp && typeof capApp.exitApp === 'function') {
+      capApp.exitApp();
+      return;
+    }
+
+    try {
+      window.close();
+    } catch {
+      // Ignore browser close restrictions
+    }
+
+    window.history.go(-2);
+
+    // Restore guard only if standard desktop browser prevented closing/leaving
+    window.setTimeout(() => {
+      isExitingAppRef.current = false;
+      try {
+        if (!window.history.state?.balahzaGuard) {
+          window.history.pushState({ balahzaGuard: true }, '', window.location.href);
+        }
+      } catch {
+        // Ignore in restricted frames
+      }
+    }, 1200);
   };
 
   const handleSelectBuy = async () => {
@@ -883,6 +997,13 @@ export default function App() {
           lang={lang}
         />
       )}
+
+      {/* Android Back Button Exit Confirmation Modal */}
+      <ExitConfirmationModal
+        open={showExitModal}
+        onConfirmExit={handleConfirmExitApp}
+        onCancel={() => setShowExitModal(false)}
+      />
     </div>
   );
 }
