@@ -154,9 +154,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none animate-fade-in">
-      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80 animate-modal-up">
+      <div className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-[#E8C5A0] animate-modal-up">
         {/* Header */}
-        <div className="p-4 border-b border-amber-200/70 flex items-center justify-between bg-[#FEF9E7]/80">
+        <div className="p-4 border-b border-[#E8C5A0]/80 flex items-center justify-between bg-[#FFE4C4]/75">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center shadow-xs">
               <ShieldCheck className="w-4 h-4" />
@@ -175,7 +175,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 active:scale-90 flex items-center justify-center transition-all"
+            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FFE4C4] active:scale-90 flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
@@ -183,7 +183,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         {/* Auth Mode Switcher */}
-        <div className="grid grid-cols-2 gap-1 p-2 bg-[#FEF9E7] border-b border-amber-200/80">
+        <div className="grid grid-cols-2 gap-1 p-2 bg-[#FFE4C4] border-b border-[#E8C5A0]">
           <button
             type="button"
             onClick={() => {
@@ -219,7 +219,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           {purposeMessage && (
-            <div className="p-3 rounded-xl bg-[#FEF9E7] border border-amber-200 text-[#1E293B] text-xs leading-relaxed">
+            <div className="p-3 rounded-xl bg-[#FFE4C4]/70 border border-[#E8C5A0] text-[#1E293B] text-xs leading-relaxed">
               {purposeMessage}
             </div>
           )}
@@ -251,7 +251,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder={isAr ? 'مثال: أحمد الموصلي' : 'e.g. Ahmed'}
-                    className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
+                    className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
                   />
                   <User className="w-3.5 h-3.5 text-[#64748B]/70 absolute left-3 top-3 pointer-events-none" />
                 </div>
@@ -268,7 +268,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="0770XXXXXXX"
-                    className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                    className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
                   />
                   <Phone className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
                 </div>
@@ -287,7 +287,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
               />
               <Mail className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
             </div>
@@ -310,7 +310,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
               />
               <Lock className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
             </div>

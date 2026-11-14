@@ -60,7 +60,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={isAr ? 'ابحث عن متجر...' : 'Search stores...'}
-          className="w-full h-11 pr-11 pl-10 rounded-2xl bg-[#FFFDF9] border border-amber-200/80 shadow-[0_2px_10px_rgba(245,158,11,0.06)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white focus:border-transparent transition-all"
+          className="w-full h-11 pr-11 pl-10 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.08)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:border-transparent transition-all"
         />
         {searchQuery && (
           <button
@@ -80,7 +80,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div
               key={n}
-              className="p-4 rounded-2xl bg-[#FFFDF9] border border-amber-200/60 space-y-3"
+              className="p-4 rounded-2xl bg-white border border-[#E8C5A0]/80 space-y-3"
             >
               <div className="flex items-center gap-3.5">
                 <div className="w-13 h-13 rounded-2xl skeleton-shimmer shrink-0" />
@@ -94,8 +94,8 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
           ))}
         </div>
       ) : filteredStores.length === 0 ? (
-        <div className="animate-fade-in py-16 px-6 text-center bg-[#FFFDF9] rounded-2xl border border-amber-200/80 shadow-[0_3px_14px_rgba(245,158,11,0.05)]">
-          <Store className="w-8 h-8 text-amber-300 mx-auto mb-2.5" />
+        <div className="animate-fade-in py-16 px-6 text-center bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_3px_14px_rgba(180,120,60,0.08)]">
+          <Store className="w-8 h-8 text-[#C69363] mx-auto mb-2.5" />
           <p className="text-sm font-semibold text-[#64748B]">
             {stores.length === 0
               ? (isAr ? 'لا توجد متاجر مسجلة بعد' : 'No stores yet')
@@ -117,7 +117,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
               <div
                 key={store.id}
                 onClick={() => onSelectStore(store)}
-                className="group p-4 rounded-2xl bg-[#FFFDF9] border border-amber-200/75 shadow-[0_3px_12px_rgba(13,148,136,0.05)] hover:shadow-[0_14px_28px_rgba(13,148,136,0.12)] hover:border-amber-300 hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer transition-all duration-200 flex flex-col justify-between gap-3"
+                className="group p-4 rounded-2xl bg-white border border-[#E8C5A0]/85 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_28px_rgba(13,148,136,0.14)] hover:border-[#D9AD82] hover:-translate-y-0.5 active:scale-[0.98] cursor-pointer transition-all duration-200 flex flex-col justify-between gap-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3.5 min-w-0">
@@ -164,7 +164,7 @@ export const StoresDirectoryView: React.FC<StoresDirectoryViewProps> = ({
                 </div>
 
                 {/* Clean Metadata Footer */}
-                <div className="pt-2.5 border-t border-amber-200/50 flex items-center justify-between gap-2 text-[11px] text-[#64748B] flex-wrap">
+                <div className="pt-2.5 border-t border-[#FFE4C4] flex items-center justify-between gap-2 text-[11px] text-[#64748B] flex-wrap">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="inline-flex items-center gap-1 truncate text-[#1E293B] font-medium">
                       <MapPin className="w-3 h-3 text-[#0D9488] shrink-0" />

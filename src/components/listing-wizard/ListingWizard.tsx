@@ -24,6 +24,7 @@ import {
   supabase,
   upsertUserProfile
 } from '../../lib/supabase';
+import { NeighborhoodSelector } from '../common/NeighborhoodSelector';
 
 interface ListingWizardProps {
   onCancel: () => void;
@@ -63,6 +64,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
   const [category, setCategory] = useState<CategoryId>('electronics');
   const [price, setPrice] = useState<string>('');
   const [sellerPhone, setSellerPhone] = useState<string>(currentUser?.phoneNumber || '');
+  const [district, setDistrict] = useState<string>('حي الزهور');
   const [description, setDescription] = useState<string>('');
 
   // Google Maps location state
@@ -247,6 +249,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         ? `https://www.google.com/maps?q=${latitude},${longitude}`
         : undefined;
 
+      const resolvedCity = district === 'أخرى / خارج الموصل' ? 'خارج الموصل' : 'الموصل';
+      const resolvedDistrict = district.trim() || 'حي الزهور';
+
       const newListing: Listing = {
         id: `post-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         title: title.trim(),
@@ -263,8 +268,8 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
         sellerId: verifiedUser?.id,
         sellerName: resolvedSellerName,
         sellerPhone: sellerPhone.trim(),
-        city: 'الموصل',
-        district: 'الموصل',
+        city: resolvedCity,
+        district: resolvedDistrict,
         latitude,
         longitude,
         mapsUrl: cleanMapsUrl,
@@ -273,8 +278,9 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             ? {
                 lat: latitude,
                 lng: longitude,
-                addressName: 'الموصل',
-                city: 'الموصل',
+                addressName: resolvedDistrict,
+                city: resolvedCity,
+                district: resolvedDistrict,
               }
             : undefined,
         deliveryAvailable: false,
@@ -348,7 +354,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
       {/* Form Card */}
       <form
         onSubmit={handlePublish}
-        className="bg-[#FFFDF9] rounded-2xl border border-amber-200/80 p-5 sm:p-6 space-y-5 shadow-[0_4px_20px_rgba(13,148,136,0.06)]"
+        className="bg-white rounded-2xl border border-[#E8C5A0] p-5 sm:p-6 space-y-5 shadow-[0_4px_20px_rgba(180,120,60,0.09)]"
       >
         {(validationError || uploadError) && (
           <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
@@ -377,7 +383,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           </label>
 
           {previewUrl ? (
-            <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-[#FEF9E7] border border-amber-200">
+            <div className="relative aspect-[16/10] w-full rounded-2xl overflow-hidden bg-[#FFE4C4]/50 border border-[#E8C5A0]">
               <img
                 src={previewUrl}
                 alt={title || 'صورة المنتج'}
@@ -398,7 +404,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               type="button"
               disabled={isMediaUploading}
               onClick={() => fileInputRef.current?.click()}
-              className="w-full h-40 rounded-2xl border-2 border-dashed border-amber-300/90 bg-[#FEF9E7]/50 hover:border-[#0D9488] hover:bg-teal-50/40 transition-colors flex flex-col items-center justify-center gap-2.5 text-[#64748B] disabled:opacity-60"
+              className="w-full h-40 rounded-2xl border-2 border-dashed border-[#D9AD82] bg-[#FFE4C4]/45 hover:border-[#0D9488] hover:bg-teal-50/40 transition-colors flex flex-col items-center justify-center gap-2.5 text-[#64748B] disabled:opacity-60"
             >
               {isMediaUploading ? (
                 <>
@@ -432,7 +438,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
           <label className="block text-xs font-bold text-[#1E293B] mb-2">
             {isAr ? 'نوع الإعلان *' : 'Ad Type *'}
           </label>
-          <div className="relative grid grid-cols-2 p-1 rounded-2xl bg-[#FEF9E7] border border-amber-200/80">
+          <div className="relative grid grid-cols-2 p-1 rounded-2xl bg-[#FFE4C4] border border-[#E8C5A0]">
             <span
               aria-hidden="true"
               className={`absolute top-1 bottom-1 start-1 w-[calc(50%-0.25rem)] rounded-xl bg-[#0D9488] shadow-xs transition-transform duration-200 ease-out ${
@@ -488,7 +494,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={isAr ? 'مثال: آيفون 15 برو بحالة ممتازة' : 'e.g. iPhone 15 Pro'}
-            className="w-full h-11 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+            className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
           />
         </div>
 
@@ -501,7 +507,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as CategoryId)}
-              className="w-full h-11 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-sm text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
             >
               {CATEGORIES.map((cat) => (
                 <option key={cat.id} value={cat.id}>
@@ -521,24 +527,38 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="0"
-              className="w-full h-11 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all"
             />
           </div>
         </div>
 
-        {/* 5. Contact Phone Number */}
-        <div>
-          <label className="block text-xs font-bold text-[#1E293B] mb-2">
-            {isAr ? 'رقم الهاتف للتواصل *' : 'Contact Phone Number *'}
-          </label>
-          <input
-            type="tel"
-            value={sellerPhone}
-            onChange={(e) => setSellerPhone(e.target.value)}
-            placeholder="0770XXXXXXX"
-            dir="ltr"
-            className="w-full h-11 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all text-left"
-          />
+        {/* 5. Contact Phone Number & Mosul Neighborhood */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div>
+            <label className="block text-xs font-bold text-[#1E293B] mb-2">
+              {isAr ? 'رقم الهاتف للتواصل *' : 'Contact Phone Number *'}
+            </label>
+            <input
+              type="tel"
+              value={sellerPhone}
+              onChange={(e) => setSellerPhone(e.target.value)}
+              placeholder="0770XXXXXXX"
+              dir="ltr"
+              className="w-full h-11 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm tabular-nums text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all text-left"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-[#1E293B] mb-2">
+              {isAr ? 'الحي / المنطقة (الموصل) *' : 'Mosul Neighborhood *'}
+            </label>
+            <NeighborhoodSelector
+              value={district}
+              onChange={setDistrict}
+              mode="form"
+              lang={lang}
+            />
+          </div>
         </div>
 
         {/* Google Maps Location Picker */}
@@ -600,7 +620,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               type="button"
               disabled={isLocating}
               onClick={handleDetectGps}
-              className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FEF9E7]/70 hover:bg-[#FEF9E7] active:scale-[0.98] border border-amber-200/80 text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+              className="group w-full min-h-[44px] px-3.5 rounded-xl bg-[#FFE4C4]/75 hover:bg-[#FFE4C4] active:scale-[0.98] border border-[#E8C5A0] text-xs font-bold text-[#1E293B] flex items-center justify-center gap-2 transition-all disabled:opacity-60"
             >
               {isLocating ? (
                 <Loader2 className="w-4 h-4 animate-spin text-[#0D9488]" />
@@ -622,12 +642,12 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
               onChange={(e) => handleMapsUrlChange(e.target.value)}
               placeholder="https://www.google.com/maps?q=36.3489,43.1577"
               dir="ltr"
-              className="w-full h-10 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
+              className="w-full h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
             />
           )}
 
           {locationError && (
-            <p className="text-xs text-amber-800">{locationError}</p>
+            <p className="text-xs text-[#7C4A21]">{locationError}</p>
           )}
         </div>
 
@@ -641,7 +661,7 @@ export const ListingWizard: React.FC<ListingWizardProps> = ({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={isAr ? 'تفاصيل إضافية عن الحالة أو الموقع...' : 'Optional details...'}
-            className="w-full p-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all resize-none"
+            className="w-full p-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-sm text-[#1E293B] placeholder:text-[#64748B]/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0D9488] transition-all resize-none"
           />
         </div>
 

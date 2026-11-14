@@ -203,18 +203,18 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`bg-[#FFFDF9] w-full max-w-lg mx-auto sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80 ${
+        className={`bg-white w-full max-w-lg mx-auto sm:rounded-3xl rounded-t-3xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-[#E8C5A0] ${
           isClosing ? 'animate-modal-down' : 'animate-modal-up'
         }`}
       >
-        <div className="sm:hidden w-10 h-1 bg-amber-200/90 rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
+        <div className="sm:hidden w-10 h-1 bg-[#E8C5A0] rounded-full mx-auto mt-2.5 mb-0.5 shrink-0" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-amber-200/70 bg-[#FFFDF9]/95 sticky top-0 z-10">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-[#E8C5A0]/80 bg-white/95 sticky top-0 z-10">
           <button
             type="button"
             onClick={handleAnimatedClose}
-            className="group min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FEF9E7] active:scale-95 rounded-xl flex items-center justify-center transition-all"
+            className="group min-w-[40px] min-h-[40px] text-[#1E293B] hover:bg-[#FFE4C4]/70 active:scale-95 rounded-xl flex items-center justify-center transition-all"
             aria-label={isAr ? 'رجوع' : 'Back'}
           >
             {isAr ? (
@@ -232,7 +232,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleShare}
-              className={`group min-w-[40px] min-h-[40px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FEF9E7] active:scale-90 flex items-center justify-center transition-all ${
+              className={`group min-w-[40px] min-h-[40px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FFE4C4]/70 active:scale-90 flex items-center justify-center transition-all ${
                 sharePop ? 'animate-heart-pop text-[#0D9488]' : ''
               }`}
               aria-label={isAr ? 'مشاركة' : 'Share'}
@@ -246,7 +246,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
             <button
               type="button"
               onClick={handleToggleFav}
-              className={`group min-w-[40px] min-h-[40px] rounded-xl hover:bg-[#FEF9E7] active:scale-90 flex items-center justify-center transition-all ${
+              className={`group min-w-[40px] min-h-[40px] rounded-xl hover:bg-[#FFE4C4]/70 active:scale-90 flex items-center justify-center transition-all ${
                 isFav ? 'text-rose-500' : 'text-[#64748B] hover:text-rose-500'
               } ${heartPop ? 'animate-heart-pop' : ''}`}
               aria-label={isAr ? 'حفظ' : 'Save'}
@@ -265,7 +265,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
           {/* Full-Resolution Image */}
           <div
             onClick={() => { if (activePhotoSrc) setIsLightboxOpen(true); }}
-            className={`relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#FEF9E7] border border-amber-200/70 flex items-center justify-center ${
+            className={`relative aspect-[4/3] rounded-2xl overflow-hidden bg-[#FFE4C4]/60 border border-[#E8C5A0]/80 flex items-center justify-center ${
               activePhotoSrc ? 'cursor-zoom-in' : ''
             }`}
           >
@@ -283,15 +283,15 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 />
               </>
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-[#FEF9E7] to-amber-100/60 flex items-center justify-center">
-                <ImageIcon className="w-10 h-10 text-amber-300" />
+              <div className="w-full h-full bg-[#FFE4C4]/70 flex items-center justify-center">
+                <ImageIcon className="w-10 h-10 text-[#C69363]" />
               </div>
             )}
 
             {listing.isSoldOut && (
               <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center pointer-events-none">
                 <span className="px-4 py-2 rounded-2xl bg-slate-900/80 backdrop-blur-xs text-white text-xs sm:text-sm font-extrabold border border-white/15 shadow-md inline-flex items-center gap-2">
-                  <PackageX className="w-4 h-4 text-amber-300" />
+                  <PackageX className="w-4 h-4 text-[#FFE4C4]" />
                   <span>{isAr ? 'نفدت الكمية' : 'Sold Out'}</span>
                 </span>
               </div>
@@ -328,7 +328,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
               <div className="shrink-0">
                 {listing.hidePrice ? (
-                  <span className="text-xs font-bold text-amber-800">
+                  <span className="text-xs font-bold text-[#7C4A21]">
                     {isAr ? 'السعر عند التواصل' : 'Contact for price'}
                   </span>
                 ) : (
@@ -370,10 +370,10 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
 
           {/* Owner Quick Availability Toggle (متوفر / نفدت الكمية) */}
           {isOwner && onToggleSoldOut && (
-            <div className="p-3.5 rounded-2xl bg-[#FEF9E7] border border-amber-200/90 flex items-center justify-between gap-3">
+            <div className="p-3.5 rounded-2xl bg-[#FFE4C4]/75 border border-[#E8C5A0] flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 min-w-0">
                 {listing.isSoldOut ? (
-                  <PackageX className="w-4 h-4 text-amber-700 shrink-0" />
+                  <PackageX className="w-4 h-4 text-[#7C4A21] shrink-0" />
                 ) : (
                   <PackageCheck className="w-4 h-4 text-[#0D9488] shrink-0" />
                 )}
@@ -413,7 +413,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
           )}
 
           {/* Description */}
-          <div className="p-4 rounded-2xl bg-[#FEF9E7]/65 border border-amber-200/70 space-y-1.5">
+          <div className="p-4 rounded-2xl bg-[#FFE4C4]/50 border border-[#E8C5A0]/80 space-y-1.5">
             <h2 className="text-xs font-bold text-[#1E293B]">
               {isAr ? 'تفاصيل الإعلان' : 'Details'}
             </h2>
@@ -423,7 +423,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
           </div>
 
           {/* Seller / Store & Location Card */}
-          <div className="p-4 rounded-2xl bg-white border border-amber-200/80 shadow-[0_2px_10px_rgba(245,158,11,0.05)] space-y-3">
+          <div className="p-4 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.06)] space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-100 text-[#0D9488] flex items-center justify-center overflow-hidden shrink-0">
@@ -470,7 +470,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                           onClose();
                           onOpenStore(listing.storeId!);
                         }}
-                        className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-100/80 hover:bg-amber-200/70 active:scale-95 text-amber-900 border border-amber-200/80 text-[11px] font-bold transition-all"
+                        className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FFE4C4] hover:bg-[#F5D0A9] active:scale-95 text-[#7C4A21] border border-[#E8C5A0] text-[11px] font-bold transition-all"
                       >
                         <Store className="w-3 h-3 transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
                         <span>{isAr ? 'زيارة المتجر' : 'View Store'}</span>
@@ -489,7 +489,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 <a
                   href={`tel:${listing.sellerPhone}`}
                   dir="ltr"
-                  className="group inline-flex items-center gap-1.5 text-xs font-bold tabular-nums text-[#1E293B] bg-[#FEF9E7] hover:bg-amber-100/80 active:scale-95 border border-amber-200/80 px-3 py-2 rounded-xl transition-all shrink-0"
+                  className="group inline-flex items-center gap-1.5 text-xs font-bold tabular-nums text-[#1E293B] bg-[#FFE4C4]/80 hover:bg-[#FFE4C4] active:scale-95 border border-[#E8C5A0] px-3 py-2 rounded-xl transition-all shrink-0"
                 >
                   <Phone className="w-3.5 h-3.5 text-[#0D9488] transition-transform duration-200 group-hover:-rotate-12" />
                   <span>{listing.sellerPhone}</span>
@@ -512,7 +512,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
                 </a>
 
                 {typeof lat === 'number' && typeof lng === 'number' && (
-                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-amber-200/80 bg-[#FEF9E7]">
+                  <div className="relative w-full h-36 rounded-xl overflow-hidden border border-[#E8C5A0] bg-[#FFE4C4]/50">
                     <iframe
                       title="Post Location in Google Maps"
                       src={`https://maps.google.com/maps?q=${lat},${lng}&hl=ar&z=15&output=embed`}
@@ -527,7 +527,7 @@ export const ListingDetailModal: React.FC<ListingDetailModalProps> = ({
         </div>
 
         {/* Sticky Bottom Actions */}
-        <div className="p-4 bg-[#FFFDF9] border-t border-amber-200/70 grid grid-cols-2 gap-2.5 pb-safe">
+        <div className="p-4 bg-white border-t border-[#E8C5A0]/80 grid grid-cols-2 gap-2.5 pb-safe">
           {listing.contactOptions?.whatsapp ? (
             <button
               type="button"

@@ -16,6 +16,7 @@ import {
   Package,
   PackageCheck,
   PackageX,
+  Trash2,
   Image as ImageIcon
 } from 'lucide-react';
 import { Listing, StoreProfile, UserAccount } from '../../types';
@@ -34,7 +35,9 @@ interface UserProfileModalProps {
   user: UserAccount | null;
   listings?: Listing[];
   onToggleSoldOut?: (listing: Listing, nextSoldOut: boolean) => Promise<void> | void;
+  onDeleteAd?: (listing: Listing) => Promise<boolean> | boolean;
   updatingPostId?: string | null;
+  deletingPostId?: string | null;
   onSelectListing?: (listing: Listing) => void;
   onUpdateUser: (user: UserAccount | null) => void;
   onOpenAuth?: () => void;
@@ -48,7 +51,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   user,
   listings = [],
   onToggleSoldOut,
+  onDeleteAd,
   updatingPostId = null,
+  deletingPostId = null,
   onSelectListing,
   onUpdateUser,
   onOpenAuth,
@@ -78,6 +83,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [isCreatingStore, setIsCreatingStore] = useState(false);
   const [storeError, setStoreError] = useState<string | null>(null);
   const [storeSuccessMsg, setStoreSuccessMsg] = useState<string | null>(null);
+  const [confirmDeleteAd, setConfirmDeleteAd] = useState<Listing | null>(null);
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -110,6 +116,17 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setNewStorePhone(user.phoneNumber);
     }
   }, [user?.phoneNumber, newStorePhone]);
+
+  useEffect(() => {
+    if (!confirmDeleteAd) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deletingPostId !== confirmDeleteAd.id) {
+        setConfirmDeleteAd(null);
+      }
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [confirmDeleteAd, deletingPostId]);
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -240,11 +257,23 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       )
     : [];
 
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteAd || !onDeleteAd) return;
+    const targetAd = confirmDeleteAd;
+    const ok = await onDeleteAd(targetAd);
+    if (ok) {
+      if (targetAd.adType === 'commercial' || targetAd.sellerType === 'commercial') {
+        setCommercialCount((prev) => Math.max(0, prev - 1));
+      }
+      setConfirmDeleteAd(null);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-3 select-none text-xs animate-fade-in">
-      <div className="bg-[#FFFDF9] w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden border border-amber-200/80 max-h-[92vh] flex flex-col animate-modal-up">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-[#E8C5A0] max-h-[92vh] flex flex-col animate-modal-up">
         {/* Header */}
-        <div className="p-4 border-b border-amber-200/70 flex items-center justify-between bg-[#FEF9E7]/80 shrink-0">
+        <div className="p-4 border-b border-[#E8C5A0]/80 flex items-center justify-between bg-[#FFE4C4]/75 shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-[#0D9488] text-white flex items-center justify-center overflow-hidden shadow-xs">
               {avatarUrl ? (
@@ -265,7 +294,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-amber-100/70 active:scale-90 flex items-center justify-center transition-all"
+            className="group min-w-[36px] min-h-[36px] text-[#64748B] hover:text-[#1E293B] rounded-xl hover:bg-[#FFE4C4] active:scale-90 flex items-center justify-center transition-all"
             aria-label={isAr ? 'إغلاق' : 'Close'}
           >
             <X className="w-4 h-4 transition-transform duration-200 group-hover:rotate-90" />
@@ -311,7 +340,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
           {/* Free Store Unlock Progress (30 Commercial Ads) */}
           {user && (
-            <div className="p-4 border-b border-amber-200/70 bg-[#FFFDF9] space-y-3">
+            <div className="p-4 border-b border-[#E8C5A0]/70 bg-white space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
                   <Store className="w-4 h-4 text-[#0D9488]" />
@@ -328,7 +357,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
               {/* Progress Bar */}
               <div className="space-y-1.5">
-                <div className="w-full h-2.5 rounded-full bg-amber-100/80 overflow-hidden">
+                <div className="w-full h-2.5 rounded-full bg-[#FFE4C4] overflow-hidden">
                   <div
                     className="h-full rounded-full bg-[#0D9488] transition-all duration-300"
                     style={{ width: `${progressPercent}%` }}
@@ -349,7 +378,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
               )}
 
               {userStore ? (
-                <div className="p-3 rounded-xl bg-[#FEF9E7]/80 border border-amber-200 flex items-center justify-between gap-2">
+                <div className="p-3 rounded-xl bg-[#FFE4C4]/70 border border-[#E8C5A0] flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-[#1E293B] truncate">{userStore.name}</p>
                     <p className="text-xs text-[#64748B] tabular-nums" dir="ltr">
@@ -372,7 +401,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 </div>
               ) : canUnlockStore ? (
                 showCreateStoreForm ? (
-                  <form onSubmit={handleCreateFreeStore} className="p-3.5 rounded-2xl bg-[#FDFBF7] border border-amber-200/80 space-y-2.5">
+                  <form onSubmit={handleCreateFreeStore} className="p-3.5 rounded-2xl bg-[#FFE4C4]/45 border border-[#E8C5A0] space-y-2.5">
                     <p className="text-xs font-bold text-[#1E293B]">
                       {isAr ? 'إعداد متجرك المجاني' : 'Create Your Free Store'}
                     </p>
@@ -394,7 +423,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         value={newStoreName}
                         onChange={(e) => setNewStoreName(e.target.value)}
                         placeholder={isAr ? 'مثال: معرض النخبة للإلكترونيات' : 'Store Name'}
-                        className="w-full h-10 px-3 rounded-xl bg-white border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
+                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488]"
                       />
                     </div>
 
@@ -409,7 +438,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                         onChange={(e) => setNewStorePhone(e.target.value)}
                         placeholder="0770XXXXXXX"
                         dir="ltr"
-                        className="w-full h-10 px-3 rounded-xl bg-white border border-amber-200/80 text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
+                        className="w-full h-10 px-3 rounded-xl bg-white border border-[#E8C5A0] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] text-left"
                       />
                     </div>
 
@@ -429,7 +458,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowCreateStoreForm(false)}
-                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-amber-200 text-[#1E293B] text-xs font-semibold hover:bg-[#FEF9E7] active:scale-95 transition-all inline-flex items-center gap-1"
+                        className="min-h-[40px] px-3.5 rounded-xl bg-white border border-[#E8C5A0] text-[#1E293B] text-xs font-semibold hover:bg-[#FFE4C4]/70 active:scale-95 transition-all inline-flex items-center gap-1"
                       >
                         <X className="w-3.5 h-3.5 text-[#64748B]" />
                         <span>{isAr ? 'إلغاء' : 'Cancel'}</span>
@@ -450,9 +479,9 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          {/* My Ads (إعلاناتي) with One-Tap Availability Toggle */}
+          {/* My Ads (إعلاناتي) with One-Tap Availability Toggle & Safe Delete */}
           {user && (
-            <div className="p-4 border-b border-amber-200/70 bg-[#FDFBF7] space-y-2.5">
+            <div className="p-4 border-b border-[#E8C5A0]/70 bg-[#FFE4C4]/35 space-y-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-bold text-[#1E293B]">
                   <Package className="w-4 h-4 text-[#0D9488]" />
@@ -472,10 +501,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   {myListings.map((item) => {
                     const thumb = item.thumbnailUrl || item.mediaUrls?.[0];
                     const isUpdating = updatingPostId === item.id;
+                    const isDeleting = deletingPostId === item.id;
                     return (
                       <div
                         key={item.id}
-                        className={`p-2 rounded-xl bg-[#FFFDF9] border border-amber-200/75 flex items-center justify-between gap-2.5 transition-opacity ${
+                        className={`p-2 rounded-xl bg-white border border-[#E8C5A0] flex items-center justify-between gap-2 transition-opacity ${
                           item.isSoldOut ? 'opacity-80' : ''
                         }`}
                       >
@@ -489,7 +519,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                           }}
                           className="flex items-center gap-2.5 min-w-0 text-start flex-1"
                         >
-                          <div className="w-10 h-10 rounded-lg bg-[#FEF9E7] border border-amber-200/70 overflow-hidden shrink-0 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-[#FFE4C4]/60 border border-[#E8C5A0] overflow-hidden shrink-0 flex items-center justify-center">
                             {thumb ? (
                               <img
                                 src={thumb}
@@ -500,7 +530,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                                 }`}
                               />
                             ) : (
-                              <ImageIcon className="w-4 h-4 text-amber-300" />
+                              <ImageIcon className="w-4 h-4 text-[#C69363]" />
                             )}
                           </div>
                           <div className="min-w-0">
@@ -515,31 +545,50 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                           </div>
                         </button>
 
-                        {onToggleSoldOut && (
-                          <button
-                            type="button"
-                            disabled={isUpdating}
-                            onClick={() => onToggleSoldOut(item, !item.isSoldOut)}
-                            className={`group min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-60 ${
-                              item.isSoldOut
-                                ? 'bg-slate-800 hover:bg-slate-900 text-white'
-                                : 'bg-teal-50 hover:bg-teal-100 text-[#0F766E] border border-teal-200'
-                            }`}
-                          >
-                            {isUpdating ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : item.isSoldOut ? (
-                              <PackageX className="w-3 h-3 text-amber-300 transition-transform duration-200 group-hover:scale-110" />
-                            ) : (
-                              <PackageCheck className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
-                            )}
-                            <span>
-                              {item.isSoldOut
-                                ? (isAr ? 'نفدت الكمية' : 'Sold Out')
-                                : (isAr ? 'متوفر' : 'Available')}
-                            </span>
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {onToggleSoldOut && (
+                            <button
+                              type="button"
+                              disabled={isUpdating || isDeleting}
+                              onClick={() => onToggleSoldOut(item, !item.isSoldOut)}
+                              className={`group min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-60 ${
+                                item.isSoldOut
+                                  ? 'bg-slate-800 hover:bg-slate-900 text-white'
+                                  : 'bg-teal-50 hover:bg-teal-100 text-[#0F766E] border border-teal-200'
+                              }`}
+                            >
+                              {isUpdating ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : item.isSoldOut ? (
+                                <PackageX className="w-3 h-3 text-[#FFE4C4] transition-transform duration-200 group-hover:scale-110" />
+                              ) : (
+                                <PackageCheck className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                              )}
+                              <span>
+                                {item.isSoldOut
+                                  ? (isAr ? 'نفدت الكمية' : 'Sold Out')
+                                  : (isAr ? 'متوفر' : 'Available')}
+                              </span>
+                            </button>
+                          )}
+
+                          {onDeleteAd && (
+                            <button
+                              type="button"
+                              disabled={isUpdating || isDeleting}
+                              onClick={() => setConfirmDeleteAd(item)}
+                              aria-label={isAr ? `حذف ${item.title}` : `Delete ${item.title}`}
+                              className="group min-h-[32px] px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200/80 inline-flex items-center gap-1 shrink-0 transition-all active:scale-95 disabled:opacity-60"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-3 h-3 transition-transform duration-200 group-hover:scale-110" />
+                              )}
+                              <span>{isAr ? 'حذف' : 'Delete'}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -565,8 +614,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             )}
 
             {/* Avatar Upload */}
-            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FEF9E7]/60 border border-amber-200/70">
-              <div className="relative w-12 h-12 rounded-xl bg-amber-100/80 overflow-hidden shrink-0 flex items-center justify-center">
+            <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#FFE4C4]/55 border border-[#E8C5A0]">
+              <div className="relative w-12 h-12 rounded-xl bg-[#FFE4C4] overflow-hidden shrink-0 flex items-center justify-center">
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
@@ -613,7 +662,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="مثال: عمر الموصلي"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
                 />
                 <User className="w-3.5 h-3.5 text-[#64748B]/70 absolute left-3 top-3 pointer-events-none" />
               </div>
@@ -631,7 +680,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="0770XXXXXXX"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs tabular-nums text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
                 />
                 <Phone className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
               </div>
@@ -648,7 +697,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@domain.com"
-                  className="w-full h-10 px-3 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
+                  className="w-full h-10 px-3 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white text-left transition-all"
                 />
                 <Mail className="w-3.5 h-3.5 text-[#64748B]/70 absolute right-3 top-3 pointer-events-none" />
               </div>
@@ -683,6 +732,71 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
           </form>
         </div>
       </div>
+
+      {/* Safe Delete Confirmation Dialog */}
+      {confirmDeleteAd && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+          className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => {
+            if (deletingPostId !== confirmDeleteAd.id) {
+              setConfirmDeleteAd(null);
+            }
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-xs rounded-2xl border border-[#E8C5A0] shadow-2xl p-5 space-y-4 animate-modal-up text-center"
+          >
+            <div className="w-11 h-11 rounded-2xl bg-red-50 border border-red-200/80 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 className="w-5 h-5" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 id="confirm-delete-title" className="text-sm font-extrabold text-[#1E293B]">
+                {isAr ? 'تأكيد حذف الإعلان' : 'Confirm Delete'}
+              </h3>
+              <p className="text-xs text-[#64748B] leading-relaxed">
+                {isAr
+                  ? 'هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.'
+                  : 'Are you sure you want to delete this ad? This action cannot be undone.'}
+              </p>
+              {confirmDeleteAd.title && (
+                <p className="text-xs font-bold text-[#0F766E] truncate px-2 pt-0.5">
+                  «{confirmDeleteAd.title}»
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                disabled={deletingPostId === confirmDeleteAd.id}
+                onClick={handleConfirmDelete}
+                className="flex-1 min-h-[40px] px-3 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 disabled:opacity-60 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-all shadow-xs"
+              >
+                {deletingPostId === confirmDeleteAd.id ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="w-3.5 h-3.5" />
+                )}
+                <span>{isAr ? 'نعم، احذف الإعلان' : 'Yes, Delete Ad'}</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={deletingPostId === confirmDeleteAd.id}
+                onClick={() => setConfirmDeleteAd(null)}
+                className="min-h-[40px] px-4 rounded-xl bg-[#FFE4C4] hover:bg-[#F5D0A9] active:scale-95 disabled:opacity-60 text-[#1E293B] border border-[#E8C5A0] text-xs font-bold transition-all"
+              >
+                {isAr ? 'إلغاء' : 'Cancel'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

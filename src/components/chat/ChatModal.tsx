@@ -127,14 +127,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-xs flex flex-col justify-end sm:justify-center p-0 sm:p-4 select-none text-xs animate-fade-in">
-      <div className="bg-[#FDFBF7] w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-amber-200/80 animate-modal-up">
+      <div className="bg-white w-full max-w-md mx-auto sm:rounded-3xl rounded-t-3xl h-[88vh] flex flex-col overflow-hidden shadow-2xl border border-[#E8C5A0] animate-modal-up">
         {/* Header */}
-        <div className="bg-[#FFFDF9] border-b border-amber-200/70 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+        <div className="bg-white border-b border-[#E8C5A0]/80 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               type="button"
               onClick={onClose}
-              className="group min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#FEF9E7] active:scale-95 flex items-center justify-center transition-all shrink-0"
+              className="group min-w-[40px] min-h-[40px] -mx-1 rounded-xl text-[#1E293B] hover:bg-[#FFE4C4]/70 active:scale-95 flex items-center justify-center transition-all shrink-0"
               aria-label={isAr ? 'رجوع' : 'Back'}
             >
               {isAr ? (
@@ -144,7 +144,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
               )}
             </button>
 
-            <div className="w-9 h-9 rounded-xl bg-[#FEF9E7] border border-amber-200/80 overflow-hidden flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-[#FFE4C4]/70 border border-[#E8C5A0] overflow-hidden flex items-center justify-center shrink-0">
               {previewImg ? (
                 <img
                   src={previewImg}
@@ -175,10 +175,10 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Messages Stream */}
-        <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#FFE4C4]/35">
           {/* Reference Card */}
-          <div className="p-2.5 rounded-2xl bg-[#FFFDF9] border border-amber-200/80 shadow-2xs flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#FEF9E7] overflow-hidden flex items-center justify-center shrink-0">
+          <div className="p-2.5 rounded-2xl bg-white border border-[#E8C5A0] shadow-2xs flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-[#FFE4C4]/70 overflow-hidden flex items-center justify-center shrink-0">
               {previewImg ? (
                 <img
                   src={previewImg}
@@ -216,7 +216,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
                 className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
                   m.isMe
                     ? 'bg-[#0D9488] text-white rounded-br-xs shadow-xs'
-                    : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 rounded-bl-xs shadow-2xs'
+                    : 'bg-white text-[#1E293B] border border-[#E8C5A0] rounded-bl-xs shadow-2xs'
                 }`}
               >
                 <p>{m.text}</p>
@@ -234,7 +234,7 @@ export const ChatModal: React.FC<ChatModalProps> = ({
 
           {/* Typing */}
           {isTyping && (
-            <div className="flex items-center gap-1 p-2.5 bg-[#FFFDF9] rounded-xl border border-amber-200/80 w-16 text-[#0D9488]">
+            <div className="flex items-center gap-1 p-2.5 bg-white rounded-xl border border-[#E8C5A0] w-16 text-[#0D9488]">
               <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce"></span>
               <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce [animation-delay:0.2s]"></span>
               <span className="w-1.5 h-1.5 bg-[#0D9488] rounded-full animate-bounce [animation-delay:0.4s]"></span>
@@ -245,13 +245,13 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Quick Suggestions (Zero Horizontal Scroll: Clean Wrap) */}
-        <div className="px-3 py-2 bg-[#FFFDF9] border-t border-amber-200/70 flex flex-wrap items-center gap-1.5">
+        <div className="px-3 py-2 bg-white border-t border-[#E8C5A0]/80 flex flex-wrap items-center gap-1.5">
           {quickPrompts.map((q, i) => (
             <button
               key={i}
               type="button"
               onClick={() => handleSend(q)}
-              className="group text-[11px] font-medium text-[#1E293B] bg-[#FEF9E7] hover:bg-teal-50 hover:text-[#0F766E] active:scale-95 px-2.5 py-1 rounded-xl border border-amber-200/80 transition-all inline-flex items-center gap-1"
+              className="group text-[11px] font-medium text-[#1E293B] bg-[#FFE4C4]/75 hover:bg-teal-50 hover:text-[#0F766E] active:scale-95 px-2.5 py-1 rounded-xl border border-[#E8C5A0] transition-all inline-flex items-center gap-1"
             >
               <MessageSquare className="w-3 h-3 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
               <span>{q}</span>
@@ -260,14 +260,14 @@ export const ChatModal: React.FC<ChatModalProps> = ({
         </div>
 
         {/* Input */}
-        <div className="p-3 bg-[#FFFDF9] border-t border-amber-200/70 flex items-center gap-2 pb-safe">
+        <div className="p-3 bg-white border-t border-[#E8C5A0]/80 flex items-center gap-2 pb-safe">
           <input
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={isAr ? 'اكتب رسالتك للبائع هنا...' : 'Type message...'}
-            className="flex-1 h-10 px-3.5 rounded-xl bg-[#FDFBF7] border border-amber-200/80 text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
+            className="flex-1 h-10 px-3.5 rounded-xl bg-[#FFE4C4]/35 border border-[#E8C5A0] text-xs text-[#1E293B] focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white transition-all"
           />
 
           <button

@@ -31,7 +31,8 @@ import {
   fetchStoreById,
   subscribeToSupabasePosts,
   trackSessionVisitor,
-  updatePostSoldOutStatus
+  updatePostSoldOutStatus,
+  deleteSupabasePost
 } from './lib/supabase';
 import { ListingWizard } from './components/listing-wizard/ListingWizard';
 import { MarketplaceFeed } from './components/marketplace/MarketplaceFeed';
@@ -71,6 +72,7 @@ export default function App() {
   const [storeReturnView, setStoreReturnView] = useState<'feed' | 'stores'>('stores');
   const [isResolvingSharedStore, setIsResolvingSharedStore] = useState<boolean>(false);
   const [updatingSoldOutId, setUpdatingSoldOutId] = useState<string | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [chatListing, setChatListing] = useState<Listing | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
@@ -148,6 +150,47 @@ export default function App() {
       );
     } finally {
       setUpdatingSoldOutId(null);
+    }
+  };
+
+  const handleDeleteAd = async (listing: Listing): Promise<boolean> => {
+    const isOwner = Boolean(
+      currentUser?.id &&
+        ((listing.sellerId && String(listing.sellerId) === String(currentUser.id)) ||
+          (currentUser.customStoreId &&
+            listing.storeId &&
+            String(listing.storeId) === String(currentUser.customStoreId)))
+    );
+
+    if (!isOwner) {
+      showToastNotification(
+        isAr ? 'لا يمكنك حذف إعلان لا يخص حسابك' : 'You can only delete your own ads',
+        'info'
+      );
+      return false;
+    }
+
+    setDeletingPostId(listing.id);
+    try {
+      const deleted = await deleteSupabasePost(listing.id);
+      if (!deleted) {
+        showToastNotification(
+          isAr ? 'تعذر حذف الإعلان، يرجى المحاولة مرة أخرى' : 'Failed to delete ad',
+          'info'
+        );
+        return false;
+      }
+
+      setListings((prev) => prev.filter((item) => item.id !== listing.id));
+      setSelectedListing((prev) => (prev && prev.id === listing.id ? null : prev));
+      setChatListing((prev) => (prev && prev.id === listing.id ? null : prev));
+      showToastNotification(
+        isAr ? 'تم حذف الإعلان بنجاح' : 'Ad deleted successfully',
+        'share'
+      );
+      return true;
+    } finally {
+      setDeletingPostId(null);
     }
   };
 
@@ -376,12 +419,12 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen w-full max-w-full bg-[#FDFBF7] text-[#1E293B] flex flex-col ${
+      className={`min-h-screen w-full max-w-full bg-[#FFE4C4] text-[#1E293B] flex flex-col ${
         isAr ? 'text-right' : 'text-left'
       }`}
     >
       {/* Clean 3-Zone Top Navigation Bar */}
-      <header className="sticky top-0 z-30 bg-[#FFFDF9]/92 backdrop-blur-md border-b border-amber-200/70 shadow-[0_2px_12px_rgba(13,148,136,0.04)]">
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-[#E8C5A0]/80 shadow-[0_2px_12px_rgba(13,148,136,0.05)]">
         <div className="w-full max-w-6xl mx-auto px-4 h-15 flex items-center justify-between gap-4">
           {/* Zone 1: Brand Wordmark */}
           <button
@@ -395,7 +438,7 @@ export default function App() {
           {/* Zone 2: Clean Segmented Tabs */}
           <nav
             aria-label={isAr ? 'التنقل الرئيسي' : 'Primary navigation'}
-            className="flex items-center gap-1 bg-[#FEF9E7] border border-amber-200/80 p-1 rounded-xl shrink-0"
+            className="flex items-center gap-1 bg-[#FFE4C4] border border-[#E8C5A0] p-1 rounded-xl shrink-0"
           >
             <button
               type="button"
@@ -403,7 +446,7 @@ export default function App() {
               className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'feed'
                   ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-amber-100/70 hover:text-[#0F766E]'
+                  : 'text-[#1E293B] hover:bg-white/60 hover:text-[#0F766E]'
               }`}
             >
               <ShoppingBag
@@ -421,7 +464,7 @@ export default function App() {
               className={`group px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap shrink-0 transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
                 currentView === 'stores'
                   ? 'bg-[#0D9488] text-white shadow-xs'
-                  : 'text-[#1E293B] hover:bg-amber-100/70 hover:text-[#0F766E]'
+                  : 'text-[#1E293B] hover:bg-white/60 hover:text-[#0F766E]'
               }`}
             >
               <Store
@@ -447,7 +490,7 @@ export default function App() {
                   setShowAuthModal(true);
                 }
               }}
-              className="group min-h-[40px] px-3 sm:px-3.5 rounded-xl bg-white hover:bg-[#FEF9E7] active:scale-95 border border-amber-200/80 text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
+              className="group min-h-[40px] px-3 sm:px-3.5 rounded-xl bg-white hover:bg-[#FFE4C4]/70 active:scale-95 border border-[#E8C5A0] text-xs font-semibold text-[#1E293B] transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap shrink-0 shadow-2xs"
             >
               <User className="w-4 h-4 text-[#0D9488] shrink-0 transition-transform duration-200 group-hover:scale-110" />
               <span className="truncate max-w-[90px] sm:max-w-[130px]">
@@ -462,8 +505,8 @@ export default function App() {
       <main className={`flex-1 w-full ${currentView !== 'create' ? 'pb-24' : 'pb-10'}`}>
         {!supabaseConfig.isValid && (
           <div className="max-w-6xl mx-auto px-4 pt-4">
-            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex items-start gap-2.5">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="p-3.5 rounded-2xl bg-white border border-[#E8C5A0] text-[#7C4A21] text-xs flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-[#B45309] shrink-0 mt-0.5" />
               <div className="text-xs break-words" dir="ltr">
                 {supabaseConfig.message}
               </div>
@@ -481,10 +524,10 @@ export default function App() {
           />
         ) : isResolvingSharedStore && !selectedStore ? (
           <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-5">
-            <div className="h-44 rounded-3xl skeleton-shimmer border border-amber-200/60" />
+            <div className="h-44 rounded-3xl skeleton-shimmer border border-[#E8C5A0]/80" />
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
               {[1, 2, 3, 4].map((n) => (
-                <div key={n} className="bg-[#FFFDF9] rounded-2xl border border-amber-200/60 overflow-hidden">
+                <div key={n} className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden">
                   <div className="aspect-[4/3] skeleton-shimmer" />
                   <div className="p-3.5 space-y-2">
                     <div className="h-4 skeleton-shimmer rounded-lg w-4/5" />
@@ -548,7 +591,7 @@ export default function App() {
           aria-live="polite"
           className="fixed top-18 inset-x-0 z-[70] pointer-events-none flex justify-center px-4"
         >
-          <div className="animate-toast-in px-4 py-2.5 rounded-2xl bg-[#FFFDF9]/95 backdrop-blur-md border border-amber-200/90 shadow-[0_10px_28px_rgba(13,148,136,0.16)] flex items-center gap-2 text-xs font-bold text-[#1E293B]">
+          <div className="animate-toast-in px-4 py-2.5 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E8C5A0] shadow-[0_10px_28px_rgba(13,148,136,0.16)] flex items-center gap-2 text-xs font-bold text-[#1E293B]">
             {appToast.kind === 'favorite' ? (
               <Heart
                 className={`w-4 h-4 shrink-0 ${
@@ -566,7 +609,7 @@ export default function App() {
       )}
 
       {/* Clean Minimalist Footer with Automatic Visitor Counter */}
-      <footer className={`border-t border-amber-200/70 bg-[#FFFDF9] py-4 px-4 ${currentView !== 'create' ? 'pb-24' : ''}`}>
+      <footer className={`border-t border-[#E8C5A0]/80 bg-white py-4 px-4 ${currentView !== 'create' ? 'pb-24' : ''}`}>
         <div className="w-full max-w-6xl mx-auto flex items-center justify-between gap-3 text-xs text-[#64748B]">
           <span className="font-bold text-[#0F766E]">سوق بلحظة</span>
           {visitorCount !== null && (
@@ -631,7 +674,9 @@ export default function App() {
           user={currentUser}
           listings={listings}
           onToggleSoldOut={handleToggleSoldOut}
+          onDeleteAd={handleDeleteAd}
           updatingPostId={updatingSoldOutId}
+          deletingPostId={deletingPostId}
           onSelectListing={(item) => setSelectedListing(item)}
           onUpdateUser={(usr) => setCurrentUser(usr)}
           onOpenAuth={() => {

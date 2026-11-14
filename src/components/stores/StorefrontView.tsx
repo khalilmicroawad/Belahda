@@ -50,8 +50,8 @@ const StoreProductImage: React.FC<{ src?: string; alt: string }> = ({ src, alt }
 
   if (!src || failed) {
     return (
-      <div className="w-full h-full bg-gradient-to-br from-[#FEF9E7] to-amber-100/60 flex items-center justify-center">
-        <ImageIcon className="w-7 h-7 text-amber-300" />
+      <div className="w-full h-full bg-[#FFE4C4]/70 flex items-center justify-center">
+        <ImageIcon className="w-7 h-7 text-[#C69363]" />
       </div>
     );
   }
@@ -239,7 +239,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="group min-h-[40px] px-3 rounded-xl bg-[#FFFDF9] hover:bg-[#FEF9E7] active:scale-95 border border-amber-200/80 text-xs sm:text-sm font-bold text-[#1E293B] inline-flex items-center gap-1.5 transition-all shadow-2xs"
+          className="group min-h-[40px] px-3 rounded-xl bg-white hover:bg-[#FFE4C4]/75 active:scale-95 border border-[#E8C5A0] text-xs sm:text-sm font-bold text-[#1E293B] inline-flex items-center gap-1.5 transition-all shadow-2xs"
         >
           {isAr ? (
             <ChevronRight className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -255,7 +255,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
           className={`group min-h-[40px] px-3.5 rounded-xl border text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95 shadow-2xs ${
             copiedShare
               ? 'bg-teal-50 border-teal-300 text-[#0F766E]'
-              : 'bg-[#FFFDF9] hover:bg-[#FEF9E7] border-amber-200/80 text-[#1E293B]'
+              : 'bg-white hover:bg-[#FFE4C4]/75 border-[#E8C5A0] text-[#1E293B]'
           }`}
         >
           {copiedShare ? (
@@ -272,7 +272,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
       </div>
 
       {/* Mini Storefront Header Card */}
-      <section className="bg-[#FFFDF9] rounded-2xl sm:rounded-3xl border border-amber-200/80 shadow-[0_6px_24px_rgba(13,148,136,0.07)] p-4 sm:p-6 space-y-4">
+      <section className="bg-white rounded-2xl sm:rounded-3xl border border-[#E8C5A0] shadow-[0_6px_24px_rgba(180,120,60,0.09)] p-4 sm:p-6 space-y-4">
         <div className="flex items-start gap-3.5 sm:gap-4">
           {/* Store Logo / Avatar */}
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-teal-50 border border-teal-200/80 text-[#0D9488] flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
@@ -309,7 +309,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
             {/* Location, Activity & Ads Count Badges */}
             <div className="flex items-center flex-wrap gap-2 pt-1 text-[11px] font-semibold">
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FEF9E7] text-[#1E293B] border border-amber-200/70">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FFE4C4] text-[#1E293B] border border-[#E8C5A0]">
                 <MapPin className="w-3.5 h-3.5 text-[#0D9488] shrink-0" />
                 <span>{locationLabel}</span>
               </span>
@@ -319,7 +319,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                 <span>{activityLabel}</span>
               </span>
 
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-[#64748B] border border-amber-200/70 tabular-nums">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-[#64748B] border border-[#E8C5A0] tabular-nums">
                 <Package className="w-3.5 h-3.5 text-[#0D9488]/80 shrink-0" />
                 <span>
                   {storePosts.length} {isAr ? 'إعلان' : 'ads'}
@@ -331,7 +331,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
 
         {/* Direct One-Tap Contact Buttons (WhatsApp & Phone Call) */}
         {(whatsappUrl || storePhone) && (
-          <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-amber-200/60">
+          <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-[#FFE4C4]">
             {whatsappUrl && (
               <a
                 href={whatsappUrl}
@@ -347,7 +347,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             {storePhone && (
               <a
                 href={`tel:${storePhone}`}
-                className="group min-h-[44px] px-4 rounded-xl bg-[#FEF9E7] hover:bg-amber-100/80 active:scale-95 text-[#1E293B] border border-amber-200/90 text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
+                className="group min-h-[44px] px-4 rounded-xl bg-[#FFE4C4]/80 hover:bg-[#FFE4C4] active:scale-95 text-[#1E293B] border border-[#E8C5A0] text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2"
               >
                 <Phone className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-12" />
                 <span className="tabular-nums" dir="ltr">
@@ -368,7 +368,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             value={storeSearch}
             onChange={(e) => setStoreSearch(e.target.value)}
             placeholder={isAr ? 'ابحث داخل منتجات هذا المتجر...' : 'Search within this store...'}
-            className="w-full h-11 pr-11 pl-10 rounded-2xl bg-[#FFFDF9] border border-amber-200/80 shadow-[0_2px_10px_rgba(245,158,11,0.06)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white focus:border-transparent transition-all duration-200"
+            className="w-full h-11 pr-11 pl-10 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.08)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:border-transparent transition-all duration-200"
           />
           {storeSearch && (
             <button
@@ -390,7 +390,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             className={`group min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
               sortBy === 'newest'
                 ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7] hover:text-[#0F766E]'
+                : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E]'
             }`}
           >
             <Clock
@@ -407,7 +407,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             className={`group min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
               sortBy === 'price_asc'
                 ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7] hover:text-[#0F766E]'
+                : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E]'
             }`}
           >
             <ArrowDownNarrowWide
@@ -426,7 +426,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
             className={`group min-h-[36px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 ${
               sortBy === 'available_first'
                 ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7] hover:text-[#0F766E]'
+                : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E]'
             }`}
           >
             <CheckCircle2
@@ -447,7 +447,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div
               key={n}
-              className="bg-[#FFFDF9] rounded-2xl border border-amber-200/60 overflow-hidden"
+              className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden"
             >
               <div className="aspect-[4/3] skeleton-shimmer" />
               <div className="p-3.5 space-y-2">
@@ -458,8 +458,8 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
           ))}
         </div>
       ) : visiblePosts.length === 0 ? (
-        <div className="py-14 px-6 text-center bg-[#FFFDF9] rounded-2xl border border-amber-200/80 space-y-3">
-          <Store className="w-8 h-8 text-amber-300 mx-auto" />
+        <div className="py-14 px-6 text-center bg-white rounded-2xl border border-[#E8C5A0] space-y-3">
+          <Store className="w-8 h-8 text-[#C69363] mx-auto" />
           <p className="text-sm font-semibold text-[#64748B]">
             {storePosts.length === 0
               ? (isAr ? 'لا توجد إعلانات في هذا المتجر بعد' : 'No ads in this store yet')
@@ -487,11 +487,11 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectListing(item)}
-                className={`group bg-[#FFFDF9] rounded-2xl overflow-hidden border border-amber-200/75 shadow-[0_3px_12px_rgba(13,148,136,0.05)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.14)] hover:border-amber-300 hover:-translate-y-1 cursor-pointer transition-all duration-200 active:scale-[0.98] flex flex-col ${
+                className={`group bg-white rounded-2xl overflow-hidden border border-[#E8C5A0]/85 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.16)] hover:border-[#D9AD82] hover:-translate-y-1 cursor-pointer transition-all duration-200 active:scale-[0.98] flex flex-col ${
                   item.isSoldOut ? 'opacity-80 hover:opacity-100' : ''
                 }`}
               >
-                <div className="relative aspect-[4/3] bg-[#FEF9E7]/80 overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-[4/3] bg-[#FFE4C4]/50 overflow-hidden flex items-center justify-center">
                   <div className={`w-full h-full ${item.isSoldOut ? 'grayscale-[25%]' : ''}`}>
                     <StoreProductImage src={cardImg} alt={item.title || 'منتج'} />
                   </div>
@@ -499,7 +499,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                   {item.isSoldOut && (
                     <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center pointer-events-none">
                       <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-xs text-white text-xs font-extrabold border border-white/15 shadow-sm inline-flex items-center gap-1.5">
-                        <PackageX className="w-3.5 h-3.5 text-amber-300" />
+                        <PackageX className="w-3.5 h-3.5 text-[#FFE4C4]" />
                         <span>{isAr ? 'نفدت الكمية' : 'Sold Out'}</span>
                       </span>
                     </div>
@@ -524,7 +524,7 @@ export const StorefrontView: React.FC<StorefrontViewProps> = ({
                       className={`absolute top-2.5 left-2.5 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xs shadow-xs transition-all duration-200 active:scale-125 ${
                         isFav
                           ? 'bg-white/95 text-rose-500 border border-rose-200/80'
-                          : 'bg-white/80 hover:bg-white text-[#1E293B]/80 border border-amber-200/60'
+                          : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#E8C5A0]/80'
                       } ${isPopping ? 'animate-heart-pop' : ''}`}
                     >
                       <Heart

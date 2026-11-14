@@ -22,10 +22,13 @@ import {
   RotateCcw,
   Store,
   PackageX,
-  ChevronDown
+  ChevronDown,
+  Check,
+  Clock
 } from 'lucide-react';
 import { Listing, CategoryId, UserAccount } from '../../types';
 import { CATEGORIES } from '../../data/categories';
+import { NeighborhoodSelector } from '../common/NeighborhoodSelector';
 
 const CATEGORY_ICONS: Record<CategoryId, React.ElementType> = {
   electronics: Smartphone,
@@ -63,8 +66,8 @@ const AdCardImage: React.FC<{ src?: string; alt: string }> = ({ src, alt }) => {
 
   if (!src || failed) {
     return (
-      <div className="w-full h-full bg-gradient-to-br from-[#FEF9E7] to-amber-100/60 flex items-center justify-center">
-        <ImageIcon className="w-7 h-7 text-amber-300" />
+      <div className="w-full h-full bg-[#FFE4C4]/70 flex items-center justify-center">
+        <ImageIcon className="w-7 h-7 text-[#C69363]" />
       </div>
     );
   }
@@ -105,23 +108,48 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all' | 'favorites'>('all');
   const [selectedArea, setSelectedArea] = useState<string>('all');
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState<boolean>(false);
   const [poppedCardId, setPoppedCardId] = useState<string | null>(null);
+  const categoryMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isCategoryMenuOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (categoryMenuRef.current && !categoryMenuRef.current.contains(e.target as Node)) {
+        setIsCategoryMenuOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsCategoryMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [isCategoryMenuOpen]);
 
   useEffect(() => {
     if (resetTrigger) {
       setSearchQuery('');
       setSelectedCategory('all');
       setSelectedArea('all');
+      setIsCategoryMenuOpen(false);
     }
   }, [resetTrigger]);
 
-  const availableAreas = useMemo(() => {
-    const unique = new Set<string>();
+  const { areaCounts, extraAreas } = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const extras: string[] = [];
     listings.forEach((item) => {
       const area = (item.district || item.city || '').trim();
-      if (area) unique.add(area);
+      if (area) {
+        counts[area] = (counts[area] || 0) + 1;
+        if (!extras.includes(area)) extras.push(area);
+      }
     });
-    return Array.from(unique).sort((a, b) => a.localeCompare(b, 'ar'));
+    return { areaCounts: counts, extraAreas: extras };
   }, [listings]);
 
   const savedListingsCount = useMemo(
@@ -149,7 +177,10 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
             (item.category || '').toLowerCase().includes(q) ||
             (catDef &&
               (catDef.nameAr.toLowerCase().includes(q) || catDef.nameEn.toLowerCase().includes(q)));
-          return matchesTitle || matchesCat;
+          const matchesArea =
+            (item.district || '').toLowerCase().includes(q) ||
+            (item.city || '').toLowerCase().includes(q);
+          return matchesTitle || matchesCat || matchesArea;
         }
         return true;
       })
@@ -165,18 +196,38 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
     onToggleFavorite?.(postId);
   };
 
+  const activeCategoryDef = CATEGORIES.find((c) => c.id === selectedCategory);
+  const ActiveCategoryIcon: React.ElementType =
+    selectedCategory === 'favorites'
+      ? Heart
+      : selectedCategory === 'all' || !activeCategoryDef
+      ? LayoutGrid
+      : CATEGORY_ICONS[activeCategoryDef.id];
+  const activeCategoryLabel =
+    selectedCategory === 'favorites'
+      ? isAr
+        ? `المفضلة (${savedListingsCount})`
+        : `Favorites (${savedListingsCount})`
+      : selectedCategory === 'all' || !activeCategoryDef
+      ? isAr
+        ? 'الكل'
+        : 'All'
+      : isAr
+      ? activeCategoryDef.nameAr
+      : activeCategoryDef.nameEn;
+
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-5 space-y-5">
-      {/* Search + Zero-Overflow Wrapping Categories */}
-      <div className="space-y-3.5">
-        <div className="relative">
+      {/* Compact Search + Category Dropdown + Mosul Neighborhood Dropdown */}
+      <div className="flex flex-col md:flex-row md:items-center gap-2.5">
+        <div className="relative flex-1 min-w-0">
           <Search className="w-4 h-4 text-[#0D9488]/70 absolute right-4 top-3.5 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={isAr ? 'ابحث بالعنوان أو التصنيف...' : 'Search by title or category...'}
-            className="w-full h-11 pr-11 pl-10 rounded-2xl bg-[#FFFDF9] border border-amber-200/80 shadow-[0_2px_10px_rgba(245,158,11,0.06)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:bg-white focus:border-transparent transition-all duration-200"
+            placeholder={isAr ? 'ابحث بالعنوان أو التصنيف أو الحي...' : 'Search by title, category, or area...'}
+            className="w-full h-[42px] pr-11 pl-10 rounded-2xl bg-white border border-[#E8C5A0] shadow-[0_2px_10px_rgba(180,120,60,0.08)] text-sm text-[#1E293B] placeholder:text-[#64748B]/75 focus:outline-none focus:ring-2 focus:ring-[#0D9488] focus:border-transparent transition-all duration-200"
           />
           {searchQuery && (
             <button
@@ -190,119 +241,137 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
           )}
         </div>
 
-        {/* Clean Wrapping Category & Favorites Filter Pills (Zero Horizontal Scroll) */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('all')}
-            className={`group min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-              selectedCategory === 'all'
-                ? 'bg-[#0F766E] text-white shadow-[0_4px_12px_rgba(15,118,110,0.22)]'
-                : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7] hover:text-[#0F766E]'
-            }`}
-          >
-            <LayoutGrid
-              className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
-                selectedCategory === 'all'
-                  ? 'text-white scale-110'
-                  : 'text-[#0D9488] group-hover:scale-110 group-hover:rotate-3'
-              }`}
-            />
-            <span>{isAr ? 'الكل' : 'All'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('favorites')}
-            className={`group min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-              selectedCategory === 'favorites'
-                ? 'bg-rose-500 text-white shadow-[0_4px_12px_rgba(244,63,94,0.24)]'
-                : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-rose-300 hover:bg-rose-50/50'
-            }`}
-          >
-            <Heart
-              className={`w-3.5 h-3.5 shrink-0 transition-transform duration-200 ${
+        {/* Compact Side-by-Side Dropdown Controls */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+          {/* 1. Compact Category Dropdown with Icons */}
+          <div ref={categoryMenuRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsCategoryMenuOpen((prev) => !prev)}
+              aria-haspopup="listbox"
+              aria-expanded={isCategoryMenuOpen}
+              className={`group min-h-[42px] px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center justify-between gap-2 whitespace-nowrap ${
                 selectedCategory === 'favorites'
-                  ? 'fill-white text-white scale-110'
-                  : savedListingsCount > 0
-                  ? 'fill-rose-500 text-rose-500 group-hover:scale-110 group-hover:-rotate-6'
-                  : 'text-rose-500 group-hover:scale-110 group-hover:-rotate-6'
-              }`}
-            />
-            <span>{isAr ? 'المفضلة' : 'Favorites'}</span>
-            <span
-              className={`tabular-nums text-[11px] font-bold ${
-                selectedCategory === 'favorites' ? 'text-white/95' : 'text-[#64748B]'
-              }`}
-            >
-              ({savedListingsCount})
-            </span>
-          </button>
-
-          {CATEGORIES.map((cat) => {
-            const active = selectedCategory === cat.id;
-            const CatIcon = CATEGORY_ICONS[cat.id];
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`group min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
-                  active
-                    ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                    : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7] hover:text-[#0F766E]'
-                }`}
-              >
-                <CatIcon
-                  className={`w-3.5 h-3.5 shrink-0 transition-all duration-200 ${
-                    active
-                      ? 'text-white scale-110 -rotate-3'
-                      : 'text-[#0D9488] group-hover:text-[#0F766E] group-hover:scale-110 group-hover:-rotate-6'
-                  }`}
-                />
-                <span>{isAr ? cat.nameAr : cat.nameEn}</span>
-              </button>
-            );
-          })}
-
-          {/* Clean Area / Neighborhood Filter Pill Dropdown */}
-          {availableAreas.length > 0 && (
-            <div
-              className={`group relative min-h-[38px] rounded-xl text-xs font-semibold transition-all duration-200 inline-flex items-center shrink-0 ${
-                selectedArea !== 'all'
+                  ? 'bg-rose-500 text-white shadow-[0_4px_12px_rgba(244,63,94,0.24)]'
+                  : selectedCategory !== 'all'
                   ? 'bg-[#0D9488] text-white shadow-[0_4px_12px_rgba(13,148,136,0.22)]'
-                  : 'bg-[#FFFDF9] text-[#1E293B] border border-amber-200/80 hover:border-amber-300 hover:bg-[#FEF9E7]'
+                  : 'bg-white text-[#1E293B] border border-[#E8C5A0] hover:border-[#D9AD82] hover:bg-[#FFE4C4]/70 hover:text-[#0F766E] shadow-[0_2px_10px_rgba(180,120,60,0.08)]'
               }`}
             >
-              <MapPin
-                className={`w-3.5 h-3.5 shrink-0 pointer-events-none absolute right-3 transition-transform duration-200 ${
-                  selectedArea !== 'all'
-                    ? 'text-white scale-110'
-                    : 'text-[#0D9488] group-hover:scale-110'
-                }`}
-              />
-              <select
-                value={selectedArea}
-                onChange={(e) => setSelectedArea(e.target.value)}
-                aria-label={isAr ? 'التصفية حسب المنطقة أو الحي' : 'Filter by area'}
-                className="appearance-none bg-transparent pr-8 pl-7 py-1.5 min-h-[38px] text-xs font-semibold cursor-pointer focus:outline-none max-w-[170px] truncate"
-              >
-                <option value="all" className="text-[#1E293B] bg-[#FFFDF9]">
-                  {isAr ? 'كل المناطق' : 'All Areas'}
-                </option>
-                {availableAreas.map((area) => (
-                  <option key={area} value={area} className="text-[#1E293B] bg-[#FFFDF9]">
-                    {area}
-                  </option>
-                ))}
-              </select>
+              <span className="inline-flex items-center gap-1.5">
+                <ActiveCategoryIcon
+                  className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                    selectedCategory !== 'all'
+                      ? 'text-white scale-110'
+                      : 'text-[#0D9488] group-hover:scale-110 group-hover:-rotate-6'
+                  } ${selectedCategory === 'favorites' ? 'fill-white' : ''}`}
+                />
+                <span>
+                  {isAr ? `التصنيف: ${activeCategoryLabel}` : `Category: ${activeCategoryLabel}`}
+                </span>
+              </span>
               <ChevronDown
-                className={`w-3.5 h-3.5 shrink-0 pointer-events-none absolute left-2.5 transition-colors ${
-                  selectedArea !== 'all' ? 'text-white/90' : 'text-[#64748B]'
-                }`}
+                className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
+                  isCategoryMenuOpen ? 'rotate-180' : ''
+                } ${selectedCategory !== 'all' ? 'text-white/90' : 'text-[#64748B]'}`}
               />
-            </div>
-          )}
+            </button>
+
+            {isCategoryMenuOpen && (
+              <div
+                role="listbox"
+                className="animate-fade-in absolute top-full mt-2 start-0 sm:end-0 sm:start-auto w-64 z-50 bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_14px_34px_rgba(13,148,136,0.18)] overflow-hidden py-1.5 max-h-80 overflow-y-auto"
+              >
+                {/* All Categories */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('all');
+                    setIsCategoryMenuOpen(false);
+                  }}
+                  className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
+                    selectedCategory === 'all'
+                      ? 'bg-teal-50 text-[#0F766E] font-bold'
+                      : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <LayoutGrid className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110" />
+                    <span>{isAr ? 'الكل' : 'All Categories'}</span>
+                  </span>
+                  {selectedCategory === 'all' && <Check className="w-4 h-4 text-[#0D9488]" />}
+                </button>
+
+                {/* Favorites */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory('favorites');
+                    setIsCategoryMenuOpen(false);
+                  }}
+                  className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
+                    selectedCategory === 'favorites'
+                      ? 'bg-rose-50 text-rose-600 font-bold'
+                      : 'text-[#1E293B] hover:bg-rose-50/50 font-medium'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2.5">
+                    <Heart
+                      className={`w-4 h-4 text-rose-500 transition-transform duration-200 group-hover:scale-110 ${
+                        selectedCategory === 'favorites' || savedListingsCount > 0 ? 'fill-rose-500' : ''
+                      }`}
+                    />
+                    <span>{isAr ? 'المفضلة' : 'Favorites'}</span>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="px-1.5 py-0.5 rounded-md bg-rose-100/80 text-rose-600 text-[10px] font-bold tabular-nums">
+                      {savedListingsCount}
+                    </span>
+                    {selectedCategory === 'favorites' && <Check className="w-4 h-4 text-rose-500" />}
+                  </span>
+                </button>
+
+                <div className="my-1 border-t border-[#FFE4C4]" />
+
+                {/* All 9 Marketplace Categories with Lucide Icons */}
+                {CATEGORIES.map((cat) => {
+                  const active = selectedCategory === cat.id;
+                  const CatIcon = CATEGORY_ICONS[cat.id];
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCategory(cat.id);
+                        setIsCategoryMenuOpen(false);
+                      }}
+                      className={`group w-full px-3.5 py-2.5 text-xs flex items-center justify-between gap-2 transition-colors ${
+                        active
+                          ? 'bg-teal-50 text-[#0F766E] font-bold'
+                          : 'text-[#1E293B] hover:bg-[#FFE4C4]/55 font-medium'
+                      }`}
+                    >
+                      <span className="inline-flex items-center gap-2.5">
+                        <CatIcon className="w-4 h-4 text-[#0D9488] transition-transform duration-200 group-hover:scale-110 group-hover:-rotate-6" />
+                        <span>{isAr ? cat.nameAr : cat.nameEn}</span>
+                      </span>
+                      {active && <Check className="w-4 h-4 text-[#0D9488]" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* 2. Compact Mosul Neighborhood Dropdown */}
+          <NeighborhoodSelector
+            value={selectedArea}
+            onChange={setSelectedArea}
+            mode="filter"
+            areaCounts={areaCounts}
+            extraAreas={extraAreas}
+            lang={lang}
+          />
         </div>
       </div>
 
@@ -347,7 +416,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
           {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => (
             <div
               key={n}
-              className="bg-[#FFFDF9] rounded-2xl border border-amber-200/60 overflow-hidden"
+              className="bg-white rounded-2xl border border-[#E8C5A0]/80 overflow-hidden"
             >
               <div className="aspect-[4/3] skeleton-shimmer" />
               <div className="p-3.5 space-y-2.5">
@@ -359,7 +428,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
           ))}
         </div>
       ) : filteredListings.length === 0 ? (
-        <div className="animate-fade-in py-16 px-6 text-center bg-[#FFFDF9] rounded-2xl border border-amber-200/80 shadow-[0_3px_14px_rgba(245,158,11,0.05)] space-y-4">
+        <div className="animate-fade-in py-16 px-6 text-center bg-white rounded-2xl border border-[#E8C5A0] shadow-[0_3px_14px_rgba(180,120,60,0.08)] space-y-4">
           {selectedCategory === 'favorites' ? (
             <>
               <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center mx-auto">
@@ -375,6 +444,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedCategory('all');
+                  setSelectedArea('all');
                 }}
                 className="group min-h-[42px] px-5 py-2.5 rounded-xl bg-[#0D9488] hover:bg-[#0F766E] active:scale-95 text-white text-xs font-bold inline-flex items-center gap-1.5 transition-all shadow-xs"
               >
@@ -420,7 +490,14 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-5">
           {filteredListings.map((item) => {
             const cardImg = item.thumbnailUrl || item.mediaUrls?.[0];
-            const locationText = item.district || item.city;
+            const cleanDistrict = (item.district || '').trim();
+            const cleanCity = (item.city || '').trim();
+            const locationBadgeText =
+              cleanDistrict === 'أخرى / خارج الموصل'
+                ? cleanDistrict
+                : cleanDistrict && cleanDistrict !== 'الموصل'
+                ? `${cleanCity && cleanCity !== cleanDistrict ? `${cleanCity} - ` : ''}${cleanDistrict}`
+                : cleanCity || (isAr ? 'الموصل' : 'Mosul');
             const isHighlighted = item.id === newlyPublishedId;
             const isFav = favoriteIds.includes(item.id);
             const isPopping = poppedCardId === item.id;
@@ -429,14 +506,14 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
               <div
                 key={item.id}
                 onClick={() => onSelectListing(item)}
-                className={`group bg-[#FFFDF9] rounded-2xl overflow-hidden border cursor-pointer transition-all duration-200 shadow-[0_3px_12px_rgba(13,148,136,0.05)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.14)] hover:border-amber-300/90 hover:-translate-y-1 active:scale-[0.98] flex flex-col ${
+                className={`group bg-white rounded-2xl overflow-hidden border cursor-pointer transition-all duration-200 shadow-[0_3px_12px_rgba(180,120,60,0.08)] hover:shadow-[0_14px_30px_rgba(13,148,136,0.16)] hover:border-[#D9AD82] hover:-translate-y-1 active:scale-[0.98] flex flex-col ${
                   isHighlighted
                     ? 'border-[#0D9488] ring-2 ring-[#14B8A6]/30'
-                    : 'border-amber-200/70'
+                    : 'border-[#E8C5A0]/80'
                 } ${item.isSoldOut ? 'opacity-80 hover:opacity-100' : ''}`}
               >
                 {/* 1. Product Image + Sold Out Ribbon + Floating Heart Bookmark */}
-                <div className="relative aspect-[4/3] bg-[#FEF9E7]/80 overflow-hidden flex items-center justify-center">
+                <div className="relative aspect-[4/3] bg-[#FFE4C4]/50 overflow-hidden flex items-center justify-center">
                   <div className={`w-full h-full ${item.isSoldOut ? 'grayscale-[25%]' : ''}`}>
                     <AdCardImage src={cardImg} alt={item.title || 'منتج'} />
                   </div>
@@ -444,7 +521,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                   {item.isSoldOut && (
                     <div className="absolute inset-0 bg-slate-950/25 flex items-center justify-center pointer-events-none">
                       <span className="px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-xs text-white text-xs font-extrabold border border-white/15 shadow-sm inline-flex items-center gap-1.5">
-                        <PackageX className="w-3.5 h-3.5 text-amber-300" />
+                        <PackageX className="w-3.5 h-3.5 text-[#FFE4C4]" />
                         <span>{isAr ? 'نفدت الكمية' : 'Sold Out'}</span>
                       </span>
                     </div>
@@ -461,7 +538,7 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                     className={`absolute top-2.5 left-2.5 z-10 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-xs shadow-xs transition-all duration-200 active:scale-125 ${
                       isFav
                         ? 'bg-white/95 text-rose-500 border border-rose-200/80'
-                        : 'bg-white/80 hover:bg-white text-[#1E293B]/80 border border-amber-200/60'
+                        : 'bg-white/85 hover:bg-white text-[#1E293B]/80 border border-[#E8C5A0]/80'
                     } ${isPopping ? 'animate-heart-pop' : ''}`}
                   >
                     <Heart
@@ -479,22 +556,14 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                     {item.title || (isAr ? 'إعلان بدون عنوان' : 'Untitled')}
                   </h3>
 
-                  <div className="space-y-1">
-                    {/* 3. Price */}
-                    <p className="text-sm sm:text-base font-extrabold text-[#0F766E] tabular-nums">
-                      {item.hidePrice
-                        ? (isAr ? 'عند التواصل' : 'Contact')
-                        : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
-                    </p>
-
-                    {/* 4. City / Location & Optional Clickable Store Badge */}
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
-                      {locationText && (
-                        <p className="text-[11px] text-[#64748B] flex items-center gap-1 truncate">
-                          <MapPin className="w-3.5 h-3.5 text-[#0D9488]/70 shrink-0" />
-                          <span className="truncate">{locationText}</span>
-                        </p>
-                      )}
+                      {/* 3. Price */}
+                      <p className="text-sm sm:text-base font-extrabold text-[#0F766E] tabular-nums">
+                        {item.hidePrice
+                          ? (isAr ? 'عند التواصل' : 'Contact')
+                          : `${Number(item.price ?? 0).toLocaleString()} ${item.currency || 'د.ع'}`}
+                      </p>
 
                       {item.storeId && item.storeName && onOpenStore && (
                         <button
@@ -503,12 +572,25 @@ export const MarketplaceFeed: React.FC<MarketplaceFeedProps> = ({
                             e.stopPropagation();
                             onOpenStore(item.storeId!);
                           }}
-                          className="group/store inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-teal-50/90 hover:bg-teal-100/90 active:scale-95 text-[#0F766E] border border-teal-200/75 text-[11px] font-bold transition-all"
+                          className="group/store inline-flex items-center gap-1 max-w-full px-2 py-0.5 rounded-lg bg-teal-50/90 hover:bg-teal-100/90 active:scale-95 text-[#0F766E] border border-teal-200/75 text-[10px] font-bold transition-all"
                         >
                           <Store className="w-3 h-3 shrink-0 text-[#0D9488] transition-transform duration-200 group-hover/store:scale-110" />
-                          <span className="truncate">{item.storeName}</span>
+                          <span className="truncate max-w-[95px]">{item.storeName}</span>
                         </button>
                       )}
+                    </div>
+
+                    {/* 4. Clear Location Badge + Posting Date Footer */}
+                    <div className="pt-2 border-t border-[#FFE4C4] flex items-center justify-between gap-1.5 text-[10px] sm:text-[11px]">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFE4C4] text-[#0F766E] border border-[#E8C5A0] font-semibold truncate min-w-0">
+                        <MapPin className="w-3 h-3 text-[#0D9488] shrink-0" />
+                        <span className="truncate">{locationBadgeText}</span>
+                      </span>
+
+                      <span className="inline-flex items-center gap-1 text-[#64748B] shrink-0 whitespace-nowrap">
+                        <Clock className="w-3 h-3 text-[#64748B]/75 shrink-0" />
+                        <span>{item.createdAt || (isAr ? 'اليوم' : 'Today')}</span>
+                      </span>
                     </div>
                   </div>
                 </div>

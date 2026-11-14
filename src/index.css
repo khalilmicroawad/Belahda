@@ -18,7 +18,7 @@
   }
 
   body {
-    background-color: #fdfbf7;
+    background-color: #FFE4C4;
     color: #1e293b;
     user-select: none;
   }
@@ -158,9 +158,9 @@
 .skeleton-shimmer {
   background: linear-gradient(
     90deg,
-    rgba(254, 243, 199, 0.45) 25%,
-    rgba(255, 253, 249, 0.95) 50%,
-    rgba(254, 243, 199, 0.45) 75%
+    rgba(255, 228, 196, 0.7) 25%,
+    rgba(255, 250, 244, 0.95) 50%,
+    rgba(255, 228, 196, 0.7) 75%
   );
   background-size: 200% 100%;
   animation: shimmerSweep 1.5s infinite linear;
